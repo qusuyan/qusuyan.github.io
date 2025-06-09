@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page.title }} | {{ site.title }}</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+    {% feed_meta %}
+    {% seo %}
+</head>
+
+<body>
+    <div class="navigation">
+        {% include navigation.html %}
+    </div>
+    <div class="wrapper">
+        <header>
+            {% include sidebar.html %}
+        </header>
+        <section>
+            {{ content }}
+        </section>
+    </div>
+</body>
+
+</html>
