@@ -1,0 +1,261 @@
+---
+layout: post
+status: publish
+published: true
+title: Basil
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 99
+wordpress_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com/?p=99
+date: '2022-01-19 04:37:22 +0000'
+date_gmt: '2022-01-19 04:37:22 +0000'
+categories:
+- Paper Review
+- Byzantine Fault Tolerance
+tags: []
+comments: []
+excerpt: <p>Basil is a transactional, leaderless, Byzantine fault tolerant key-value store. It leverages ACID
+  transactions to
+  achieve <strong>scalability</strong> in implementing the shared log in the presence of Byzantine actors. It allows
+  non-conflicting operations to proceed concurrently.</p>
+---
+
+<h2>Summary</h2>
+
+
+<h3>Overview</h3>
+{{page.excerpt}}
+<p>Basil assumes partial synchrony for liveness. It uses <strong>sharding</strong> to allow for concurrent execution. In
+  Basil, each shard, with size of $n$, can tolerate up to $f$ Byzantine actors where $n\ge 5f+1$. An arbitrary number of
+  clients can be faulty. However, despite the presence of Byzantine actors, Basil assumes that they are well-behaved in
+  most cases. It achieves high performance in the benign cases, allowing a transaction to commit within 1 RTT in the
+  best case.</p>
+
+
+<p>This paper introduces two notions of correctness, which they lay the foundations for Basil on: Byzantine isolation
+  and Byzantine independence. <em>Byzantine isolation</em>, or <em>Byz-serializability</em>, states that clients will
+  observe a sequence of states that is consistent with a sequential execution of concurrent transactions. <em>Byzantine
+    independence</em>, on the other hand, states that for every operations issued by a correct client, no group of
+  participants containing solely Byzantine actors can unilaterally dictate the result of this operation (i.e. the no
+  decision can be made by Byzantine actors only). Basil’s design follows the principle of <em>independent
+    operability</em>, meaning that it enforces safety and liveness through mechanisms that operate on a per-client and
+  per-transaction basis. This allows the clients to fetch all necessary information and send them to replicas to make
+  the decision: clients serve as the leader to coordinate operations and no communication is needed directly between any
+  pair of replicas in most cases.</p>
+
+
+<h3>Transaction Processing</h3>
+
+
+<p>In Basil, an operation proceeds in 3 phases, an <em>Execution</em> phase, a <em>Prepare</em> phase, and a
+  <em>Writeback</em> phase. During the Execution phase, the client locally executes individual transactional operations.
+  The result is broadcasted to all replicas in each involved shards during the Prepare phase for vote. The vote results
+  are aggregated to determine the outcome of the transaction to create a certificate, which is forwarded to replicas in
+  the Writeback phase, after which the replicas can proceed asynchronously to complete the operations.
+</p>
+
+
+<p>Basil’s serialization protocol is a variant of <em>multiversioned timestamp ordering</em> (<em>MVTSO</em>), an
+  optimistic concurrency control protocol. The traditional MVTSO works as following: each transaction is assigned a
+  unique timestamp that determines the serialization order. Entries written in this transaction are tagged with this
+  timestamp, and reads in this transaction updates the corresponding entries’ <em>read timestamp (RTS).</em> MVTSO
+  ensures that, for each transaction with timestamp $ts_1$, writing an object with RTS $ts_2&gt;ts_1$ will fail (write
+  after a future read), and reading an object always returns a version tagged $ts_3&lt;ts_1$.</p>
+
+
+<p>In Execution phase, a client constructs a transaction $T$ locally with one call to <code>begin()</code> and several
+  <code>read(key)</code> and <code>write(key, value)</code> calls. <code>begin()</code> adds a client chosen timestamp
+  $ts_T$ for MVTSO. Since committing a transaction with huge timestamp can block future execution indefinitely, each
+  replica accepts a transaction only if the difference between this timestamp and the replica’s local timestamp is
+  bounded by some $\delta$. Basil buffers all <code>write(key, value)</code> locally in a $WriteSet_T$ and they are not
+  visible to the replicas until the Prepare phase. As for <code>read(key)</code>, the client sends a read request
+  &lt;READ, <em>key</em>, $ts_T$<em>&gt;</em> to at least $2f+1$ replicas in the shard the key belongs. Each replica
+  will check if this request has a valid timestamp. If it does, each replica locally updates the corresponding key’s RTS
+  with this timestamp and returns two versions, the committed version and the prepared version. The committed version
+  will come with a commit certificate and the prepared version comes with the id of transaction $T'$ that creates this
+  version as well as a set $Dep_{T'}$ including all transactions that should commit before $T'$. The client considers a
+  committed version as valid if any replica provides a valid commit certificate and it considers a prepared version as
+  valid if the same version is returned by at least $f+1$ replicas. It selects a valid version with the highest
+  timestamp to add to its $ReadSet_T$. If the version is prepared but not committed, it also adds $T'$ to $Dep_T$.
+</p>
+
+
+<p>After the Execution phase completes, Basil proceeds to the Prepare phase, which consists of a stage 1 and an optional
+  stage 2. In stage 1, the client sends the entire transaction $T$ to all replicas in all shards involved in $T$,
+  including $ts_T$, $ReadSet_T$, $WriteSet_T$, and $Dep_T$. Each replica then locally runs MVTSO to check if $T$ can be
+  committed. Specifically, it votes for commit if (1). $ts_T$ is valid, (2). all versions in $ReadSet_T$ are before
+  $ts_T$, (3). all entries touched in $WriteSet_T$ have an RTS before $ts_T$, (4). it does not conflict with another
+  on-going transaction, and (5). all transactions in $Dep_T$ are committed (it waits until they are either committed or
+  aborted). Then the replicas forward their decisions to the client, who will determine (1) if $T$ should be committed
+  or aborted, and (2) if stage 2 is needed.</p>
+
+
+<p>Stage 2 is intended to make the transaction $T$ durable. Here durability means that, if in the future another client
+  queries about $T$, it will see the same result (committed or aborted) as the client issuing this request. For the
+  replies from replicas within any shard, the client checks for following:</p>
+
+
+<ol>
+  <li><strong>Commit Slow Path</strong>: $3f+1\le\text{Commit votes}&lt;5f+1$. Here $3f+1$ commit votes ensures that two
+    conflict transactions cannot both commit ($2\times(3f+1)-n=f+1&gt;f$).</li>
+  <li><strong>Commit Fast Path</strong>: $\text{Commit votes}=5f+1$. In this case all replicas reports a conflict and
+    any client will be guaranteed to receive at least $3f+1$ commit votes. Notice that when $n=5f+1$, a client will wait
+    on responses from $4f+1$ replicas to preserve liveness in presence of network-partitioned faulty replicas, amongst
+    which $f$ of them may be Byzantine actors.</li>
+  <li><strong>Abort Slow Path</strong>: $f+1\le\text{Abort votes}&lt;3f+1$. Here $f+1$ abort votes ensure that at least
+    one correct replica detects a conflict. Notice that a transaction may still be committed in this case: there can be
+    more than $3f+1$ replicas voting for commit and another $f+1$ replicas voting for abort ($3f+1+f+1=4f+2\le5f+1=n$).
+    This is allowed since the equivocation may come from network delays.</li>
+  <li><strong>Abort Fast Path</strong>: $3f+1\le\text{Abort votes}$. In this case, the shard cannot produce more than
+    $3f+1$ commit votes ($n-(3f+1)+f=3f&lt;3f+1$).</li>
+  <li><strong>Abort Fast Path</strong>: one special case is for the abort fast path is that if a replica can provide the
+    commit certificate for a transaction conflicting with $T$. In this case, since committed transactions (and hence
+    their certificates) are durable, aborting $T$ is also durable.</li>
+</ol>
+
+
+<p>If all shards proceed in the commit fast path or at least one shard proceeds in the abort fast path, then the
+  decision is already durable and stage 2 is not necessary. Otherwise the client proceeds to stage 2.</p>
+
+
+<p>In stage 2, the client chooses a shard voted in stage 1 deterministically based on $T$’s id to log the decision. We
+  refer to this shard as $S_{log}$. The client will send its decision to commit or abort along with the votes it
+  received in stage 1. It then waits for $n-f$ replies with the same decision that the corresponding replicas will log
+  locally. Finally, the client can proceed to the Writeback phase, during which it constructs a commit certificate or
+  abort certificate and broadcasts it to all replicas in the participating shards.</p>
+
+
+<h3>Optimizations</h3>
+
+
+<p>Creating signatures is expensive. Basil proposes to reduce the cost by batching replies. The idea is to batch
+  multiple replies and generate a Merkle tree for each batch. Then, each reply message will include the root of Merkle
+  tree, a signed version of the root, and the intermediate nodes necessary to get from the reply message to the root
+  instead of the signature of the reply itself. Later when the client forwards the signature to another replica, that
+  replica will, upon successfully verifying the signature on the Merkle root, cache the Merkle root and signature
+  locally so that it does not need to verify it again when receiving another signature from the same batch.</p>
+
+
+<figure class="wp-block-image size-large"><img src="/assets/img/basil/opt.png" alt="" class="wp-image-95" /></figure>
+
+
+<h3>Transaction Recovery</h3>
+
+
+<p>Since Basil is client-driven, a transaction may stall in the presence of Byzantine clients. This may block the other
+  transactions issued by correct clients depending on this transaction indefinitely, breaking Byzantine independence. To
+  prevent this, Basil allows other clients to finish the stalled transaction through a <em>fallback</em> protocol. In
+  the <em>common</em> <em>case</em>, the replicas can reach a unanimous agreement on whether the transaction should be
+  committed or aborted, so the client can simply resume from where the transaction was left off with.</p>
+
+
+<p>However, there is a special <em>divergent case</em> where the replicas may not reach an unanimous agreement. This can
+  only happen in one case: after stage 1 of prepare phase, within a shard, over $3f+1$ replicas vote commit and over
+  $f+1$ replicas vote abort. At this point (during stage 2), a malicious client has enough votes to commit and to abort
+  the transaction, so it can deliberately send different decisions to different replicas to stall the execution.
+  Similarly, if there are multiple clients trying to finish the transaction concurrently, they may reach different
+  decisions, leading to the same result.</p>
+
+
+<p>Basil’s fallback protocol is similar to traditional view-change protocols. In Basil, <em>view</em>s are defined on a
+  per-transaction basis, with $view=0$ indicating that the message is issued by the original client that initiates the
+  transaction. The fallback protocol (in both common and divergent case) starts with client sending a <em>Recovery
+    Prepare</em> (RP) message that is identical to stage 1 request. Depending where the transaction was left off, the
+  replicas will reply with a stage 1 reply message, stage 2 reply message, or a commit certificate or a abort
+  certificate. In the common case, the client can resume directly from there. In the divergent case, on the other hand,
+  the client will issue a special request InvokeFB to invoke the fallback process. In the stage 2 replies, each replica
+  will attach its local highest view of this transaction. The client will include these view numbers in InvokeFB. Upon
+  receiving InvokeFB, the replicas will update its current view accordingly and elect a fallback leader
+  deterministically based on the current view. They will each send to the leader its local decision, and the leader,
+  after receiving $4f+1$ votes, will make the final decision through majority vote, and return this final decision to
+  all replicas. Replicas will then send a new stage 2 reply to clients interested in this transaction, who will continue
+  to Writeback phase after receiving $n-f$ stage 2 replies with matching decision and view or restart fallback protocol
+  otherwise.</p>
+
+
+<figure class="wp-block-image size-large"><img src="/assets/img/basil/recovery.png" alt="" class="wp-image-104" />
+</figure>
+
+
+<p>It is worth noting that replicas within the same shard may not be on the same view for a certain transaction, in
+  which case the fallback protocol does not produce a unanimous agreement and needs to restart. To enable fast
+  convergence to the same view, Basil does the following: if a view $v$ appears at least $3f+1$ times in InvokeFB, the
+  replica will update its current view to $max(v+1, view_{current})$; otherwise it sets its current view to the largest
+  view greater than its current view that appears at least $f+1$ times in InvokeFB. Basil also adopts vote subsumption:
+  the presence of a view $v$ in InvokeFB counts as a vote for all $v'\le v$.</p>
+
+
+<h3>Why $5f+1$?</h3>
+
+
+<p>Basil chooses $n\ge5f+1$ per shard for several reasons:</p>
+
+
+<ol>
+  <li>For any $n$, a client will wait for $n-f$ replies for liveness. Among these, $n-2f$ of them may vote to commit the
+    transaction while the rest $f$ may vote to abort due to equivocation caused by network delay (so the transaction
+    cannot be aborted). Now consider two conflicting transactions, there may be only $2\times(n-2f)-n=n-4f$ replicas
+    that see both transactions. If we do not have $n\ge5f+1$ (i.e. $n\le5f$), then $n-4f\le f$, meaning that it is
+    possible that no correct replica will detect the two conflicting transactions.</li>
+  <li>Smaller $n$ precludes Byzantine independence. For progress, after stage 1, the client has to be able to decide
+    either to commit or to abort the transaction. As previously stated, committing requires at least $3f+1$ commit
+    votes, and aborting requires at least $f+1$ abort votes due to Byzantine independence. If $n\le5f$, then with $n-f$
+    votes, it is possible that the client observes exactly $3f$ commit votes and $f$ abort votes, in which case the
+    client cannot make progress.</li>
+  <li>During the fallback protocol, the fallback leader’s decision is always safe. Consider two concurrent runs of the
+    fallback protocol on the same transaction, if one run completes and all replicas reaches a unanimous decision, then
+    in the other run, there will be at least $n-f$ replicas agreeing on this unanimous decision. Hence, out of the
+    $4f+1$ votes the leader receives, at least $2f+1$ will agree on the unanimous decision, reaching a majority.</li>
+</ol>
+
+
+<h2>Strength</h2>
+
+
+<ul>
+  <li>Basil integrates ACID transaction and concurrency control into its BFT protocol. Experiments show that this design
+    provides significantly better performance in real-world workloads (e.g. TPCC) compared with traditional system
+    design where the concurrency control is implemented as an application layer on top of BFT protocols like HotStuff
+    and PBFT.</li>
+  <li>Basil delivers splendid performance when all actors are well-behaved and there are no conflicting transactions
+    happening concurrently: in this case, all shards involved in the Prepare phase can go through the fast path and
+    stage 2 is not needed at all, allowing the transaction to finish within 1 RTT if it is write-only (stage 1 request
+    and reply; notice that client does not need to wait for the response in the Writeback phase). This is critical to
+    its great performance especially since Basil can finish a transaction through the fast path 96% of the time in TPCC.
+  </li>
+  <li>Due to its splendid performance (especially its low latency), in Basil, conflicting transactions are less likely
+    to happen, making it less bottlenecked on contention.</li>
+</ul>
+
+
+<h2>Weakness</h2>
+
+
+<ul>
+  <li>The performance of Basil deviates far from state-of-the-art trusted replication protocols with concurrency control
+    and sharding like TAPIR by huge margin. Many of the causes are inherent to all BFT protocols: the cost of generating
+    signatures (Basil’s performance improves by $3.7\times$ to $4.6\times$ after removing all cryptography proofs); the
+    cost to keep additional replicas (instead of $n\ge2f+1$ common in trusted replication systems); the additional read
+    cost to preserve Byzantine independence ($f+1$ matching versions, etc).</li>
+  <li>Basil assumes $n\ge5f+1$ replicas per shard. This is a rather strong assumption compared with other BFT protocols
+    such as HotStuff and PBFT ($n\ge3f+1$).</li>
+  <li>Since transactions are driven by clients in Basil, batching transactions is impossible. In its evaluation, this
+    paper compares Basil to HotStuff with batch size of 16 and PBFT with batch size of 64, but in the original HotStuff
+    paper uses a batch size of 100-400, leading to much higher throughput. Notice that, despite that larger batch size
+    can lead to higher latency, throughput is more critical than latency in most BFT applications.</li>
+  <li>The experiment setup in this paper did not use geo-distributed machines: the network latency is low so contention
+    is less likely to happen. In this setting, OCC provides great performance, whereas a real-world BFT system is likely
+    to have more conflicts. </li>
+</ul>
+
+
+<p><em>Florian Suri-Payer, Matthew Burke, Zheng Wang, Yunhao Zhang, Lorenzo Alvisi, and Natacha Crooks. 2021. Basil:
+    Breaking up BFT with ACID (transactions). In Proceedings of the ACM SIGOPS 28th Symposium on Operating Systems
+    Principles (SOSP '21). Association for Computing Machinery, New York, NY, USA, 1–17.
+    DOI:https://doi.org/10.1145/3477132.3483552</em></p>

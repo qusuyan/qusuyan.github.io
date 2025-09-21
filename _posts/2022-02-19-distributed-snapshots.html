@@ -1,0 +1,66 @@
+---
+layout: post
+status: publish
+published: true
+title: Distributed Snapshots
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 267
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=267
+date: '2022-02-19 10:07:26 +0000'
+date_gmt: '2022-02-19 10:07:26 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>For distributed systems it is useful the know the global state at some point of time for various tasks like
+  deadlock
+  detection. However, in absence of synchronized clocks, it is hard to obtain a snapshot of the current state of the
+  distributed system without stopping it since they might all take a snapshot at a slightly different time, leading to
+  inconsistency. In this paper, snapshot contains the local state of each node and the messages sent between nodes. So a
+  simple inconsistency can be that the sender records the state before a message is sent but the receiver records the
+  state after the message is received, leading to duplicated message passing. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>For distributed systems it is useful the know the global state at some point of time for various tasks like deadlock
+  detection. However, in absence of synchronized clocks, it is hard to obtain a snapshot of the current state of the
+  distributed system without stopping it since they might all take a snapshot at a slightly different time, leading to
+  inconsistency. In this paper, snapshot contains the local state of each node and the messages sent between nodes. So a
+  simple inconsistency can be that the sender records the state before a message is sent but the receiver records the
+  state after the message is received, leading to duplicated message passing. </p>
+
+
+<p>To begin, this paper makes the following assumptions:</p>
+
+
+<ul>
+  <li>Messages are never dropped or reordered.</li>
+  <li>The network delay is finite. </li>
+</ul>
+
+
+<p>Then the snapshot algorithm runs as follows: first, processes periodically decide to initiate a snapshot. After it is
+  done sending messages to other processes, it records its local state and sends a <em>marker</em> along the channels to
+  indicate that the messages are sent before the snapshot. The receiver, upon receiving the marker, will record its
+  local state if it has not yet done so, and record the messages in channel where the marker comes from since the state
+  has been recorded. It will also broadcast the marker if it has not yet done so. The algorithm will terminate once all
+  processes has recorded its local state and each channel has transmitted one marker. </p>
+
+
+<p>An important property of this algorithm is that the recorded state may have never actually occurred during the
+  execution: it simply records a state consistent with the partial order of events. This is because we can get a
+  consistent snapshot regardless of in which order the concurrent events occur. </p>
+
+
+<p><em>M. Chandy and L. Lamport. Distributed Snapshots: Determining Global States of Distributed SystemsLinks to an
+    external site.. ACM Trans. Comput. Syst., 3(1):63-75, 1985.</em></p>

@@ -1,0 +1,106 @@
+---
+layout: post
+status: publish
+published: true
+title: LBFS
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 242
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=242
+date: '2022-02-18 23:36:55 +0000'
+date_gmt: '2022-02-18 23:36:55 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>Low-Bandwidth Filesystem (LBFS) is a network file system designed to run in presence of network with low
+  bandwidth, which is common when the client and server are remotely located. LBFS is based on NFS v3. A key observation
+  is that, in most cases, a file is only modified slightly, while existing network filesystems retransmit the entire
+  file every time. To reduce the amount of data sent over the low-bandwidth network, LBFS only sends data if it is not
+  present on the other side of connection. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>Low-Bandwidth Filesystem (LBFS) is a network file system designed to run in presence of network with low bandwidth,
+  which is common when the client and server are remotely located. LBFS is based on NFS v3. A key observation is that,
+  in most cases, a file is only modified slightly, while existing network filesystems retransmit the entire file every
+  time. To reduce the amount of data sent over the low-bandwidth network, LBFS only sends data if it is not present on
+  the other side of connection. </p>
+
+
+<p>In LBFS, each file is divided into chunks using a sliding window of 48B. Whenever (the lower 13 bits of) the
+  fingerprint of contents in the 48B window matches a certain value, it becomes a <em>breakpoint</em> that separates two
+  chunks. This has two important benefits: 1. it is resistant to insertions; 2. chunks with the same data will have the
+  same breakpoints, so chunks divided in this way are more likely to contain the exact same data. To prevent some
+  pathological cases, LBFS breaks a chunk if it is too large (64K) and prevents breaking if a chunk is too small (2K).
+  LBFS uses SHA-1 hash and a local database to detect duplicate data chunks. LBFS stores in the database the location of
+  each chunk indexed by its SHA-1 hash value (SHA-1 is collision resistant). To reduce the overhead of maintaining the
+  database, it is not updated synchronously during writes. Although this can lead to inconsistency, LBFS does not rely
+  critically on the correctness of the database and will check if the data actually matches the hash on each access.
+</p>
+
+
+<p>The LBFS protocol is based on NFS v3 adding lease support. It performs whole-file cache. When a client makes any RPC
+  on a file, it is granted a read lease. If an update occurs during the lease period, server will notify the client
+  about it. After the lease expires, the client needs to check with servers for the attributes of the file for
+  consistency, which implicitly grants the client a read lease. LBFS thereby provides a close-to-open consistency.
+  Similar to AFS, however, LBFS caches all updates locally until the file is closed, during which all updates are
+  atomically written back in the server. Hence, in presence of concurrent writers, the last one to close a file will
+  overwrite the modification made by others. </p>
+
+
+<p>LBFS avoids transmitting data that are already present on the other side. During a read or write, the sender will
+  first break the file into chunks, find the SHA-1 hash of each chunk, and check with the receiver if the same chunks
+  are present on its side. The sender will only send the chunks missing from the receiver side. Below are the routines
+  for reading and writing a file in LBFS. One may notice that during write, the new file is written to a temperate file
+  that will replace the original file atomically when the write completes. </p>
+
+
+<figure class="wp-block-image size-full"><img src="/assets/img/lbfs/read.png" alt="" class="wp-image-246" /><br />
+  <figcaption>Reading a file in LBFS</figcaption>
+</figure>
+
+
+<figure class="wp-block-image size-full"><img src="/assets/img/lbfs/write.png" alt="" class="wp-image-248" /><br />
+  <figcaption>Writing a file in LBFS</figcaption>
+</figure>
+
+
+<h2 id="strength">Strength</h2>
+
+
+<ul>
+  <li>The use of fingerprint to identify chunks with similarities and use SHA-1 to find duplicate is simple and neat in
+    reducing the data transmitted through the network. </li>
+  <li>From evaluation LBFS is able to identify 38% overlapping data within some object files containing metadata, and
+    90% overlapping data for human readable documentations in normal workloads, significantly reducing the amount of
+    data getting transmitted. </li>
+</ul>
+
+
+<h2 id="weakness">Weakness</h2>
+
+
+<ul>
+  <li>LBFS relies critically on that SHA-1 is collision resistant. If two chunks happen to have the same hash value,
+    only one will be kept on the server. This means a malicious user can do the following:
+    <ul>
+      <li>Uploading chunks with various hash value to infer if a certain chunk of data is present on the server</li>
+      <li>Uploading a huge amount of chunks with various hash value so that future files uploaded by other users
+        containing a chunk with the same hash value will be polluted. </li>
+    </ul>
+  </li>
+</ul>
+
+
+<p>Muthitacharoen, Athicha, Benjie Chen, and David Mazieres. "A low-bandwidth network file system." <em>Proceedings of
+    the eighteenth ACM symposium on Operating systems principles</em>. 2001.</p>

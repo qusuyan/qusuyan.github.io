@@ -1,0 +1,135 @@
+---
+layout: post
+status: publish
+published: true
+title: Time, Clock, and Ordering of Events in a Distributed System
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 250
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=250
+date: '2022-02-19 09:37:09 +0000'
+date_gmt: '2022-02-19 09:37:09 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>In a distributed system, the notion of physical time is weak since each node has its own clock. Hence we
+  need a
+  different way to obtain an ordering of events and a clock that all nodes agree upon independent of each node's
+  internal clock. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>In a distributed system, the notion of physical time is weak since each node has its own clock. Hence we need a
+  different way to obtain an ordering of events and a clock that all nodes agree upon independent of each node's
+  internal clock. In this paper, we assume that sending a message and receiving a message are two events. This allows us
+  to obtain a partial order independent of the physical clock. In particular, $\rightarrow$ is defined s.t., for any two
+  events $a$ and $b$, $a\rightarrow b$ if and only if: </p>
+<ul>
+  <li>$a$ and $b$ happens within the same process and $a$ happens before $b$</li>
+  <li>$a$ is sending a message and $b$ is receiving the same message</li>
+  <li>There is another event $c$ s.t. $a\rightarrow c$ and $c\rightarrow b$</li>
+</ul>
+
+
+<p>Notice that this ordering definition is only a partial ordering. If for two events $a$ and $b$ s.t. neither
+  $a\rightarrow b$ nor $b\rightarrow a$, then we say they are <em>concurrent</em>. </p>
+
+
+<p>Using this ordering definition, we can define logical clocks. Let $C_i(a)$ be the clock time on process $i$ that
+  event $a$ happens and let $C(a)$ be the clock time of the entire system that event $a$ happens (if $a$ happens on
+  process $i$, then $C(a)=C_i(a)$). In order for the clock to realistically reflect the ordering of events, it needs to
+  follow the <em>clock condition</em>: for any events $a$, $b$, if $a\rightarrow b$ then $C(a)&lt;C(b)$. Notice that the
+  converse is not true since the two events may be concurrent. To satisfies the clock condition, it is sufficient if the
+  logical clock satisfies that</p>
+
+
+<ol>
+  <li>If $a$ and $b$ happens on the same process $i$ and $a$ comes before $b$, then $C_i(a)&lt;C_i(b)$</li>
+  <li>If $a$ is the sending of a message from process $i$ and $b$ is the receiving of the same message from process $j$,
+    then $C_i(a)&lt;C_j(b)$. </li>
+</ol>
+
+
+<p>The algorithm hence does the following:</p>
+
+
+<ol>
+  <li>Each process increments its local clock for each event it encounters.</li>
+  <li>Each message are tagged with a timestamp of the sender. When a process receives a message from another process, it
+    sets its local clock to be greater than the attached timestamp from the sender and greater than or equal to its
+    current local timestamp. </li>
+</ol>
+
+
+<p>With such a logical clock, we can construct a total ordering ($\Rightarrow$) of all events. Let $&lt;$ be an
+  arbitrary order on the processes, then for any two events $a$, $b$, $a\Rightarrow b$ if and only if $C_i(a)&lt;C_j(b)$
+  or $C_i(a)==C_j(b)$ and $P_i&lt;P_j$. Notice that all processes will reach the same ordering of all events, so
+  synchronization is achieved. </p>
+
+
+<p>One problem remaining is that, with a logical clock, the distributed system is not aware of the time of external
+  events. For example, if client $A$ sends a request before client $B$ but $B$'s request arrives at the distributed
+  system before $A$'s, then the distributed system will order $B$'s request before $A$'s. To avoid this, physical clocks
+  are needed. In order to build a physical clock, it is necessary that each node's internal clock must be running at
+  approximately the correct rate, and that all nodes are at an approximately same time at any moment. Formally, the
+  physical clock $C_i(t)$ ($t$ is the actual time) at any node $i$ must satisfy that</p>
+
+
+<ol>
+  <li>There exists a constant $\kappa \ll 1$ s.t. $|\frac{dC_i(t)}{dt}|&lt;\kappa$. </li>
+  <li>There exists a small constant $\epsilon>0$ s.t. $|C_i(t)-C_j(t)|&lt;\epsilon$. </li>
+</ol>
+
+
+<p>The first condition is achieved through hardware: for typical crystal controlled clocks, $\kappa\le 10^{-6}$. To
+  achieve the second condition, each process $i$ includes in each message $m$ it sends with the current timestamp
+  $T_m=C_i(t)$. Upon receiving a message at time $t'$, the receiver process $j$ will update its clock to $max\{C_j(t'),
+  T_m+\mu_m\}$ where $\mu_m\ge0$ is the minimum network delay (i.e. $t'-t\le\mu_m$). </p>
+
+
+<h2 id="vector-clocks">Vector Clocks</h2>
+
+
+<p>There are, however, some disadvantages in the logical clock defined in this paper. Recall that when $C(a)&lt;C(b)$,
+  we cannot determine that $a\rightarrow b$ since they might be concurrent. But such information is lost in the logical
+  clock, and many concurrent events now look like $a\rightarrow b$. This leads to more conflicts, making it harder to
+  track events with actual dependency. To resolve this, a commonly used clock in distributed systems nowaday is the
+  vector clock. Here, each process $i$ locally keeps a list of clocks $C_i = \langle c_1, c_2, ..., c_n\rangle$, one for
+  each process in the distributed system with $n$ processes. This clock is updated as follows:</p>
+
+
+<ul>
+  <li>For local operations, the process $i$ simply increments its own counter $C_i[i]++$. </li>
+  <li>When sending a message, in addition to incrementing its own counter $C_i[i]++$, it will also send the updated
+    $C_i$ (all $n$ clocks) along with the message. </li>
+  <li>Upon receiving the message, the receiver $j$ will first update its own counter $C_j[j]++$. Then, for $k=1,...,n$,
+    it updates the local clock by $C_j[k] = max\{C_j[k], C_i[k]\}$. </li>
+</ul>
+
+
+<p>Then for any two events $a$ and $b$, the ordering is defined as</p>
+
+
+<ul>
+  <li>$C(a)\le C(b)$ if $C(a)[i]\le C(b)[i]$ for all $i$</li>
+  <li>$C(a)&lt;C(b)$ if $C(a)\le C(b)$ and that $C(a)[i]&lt;C(b)[i]$ for some $i$. </li>
+</ul>
+
+
+<p>A noticeable drawback of vector clocks is that each process is locally keeping a clock for all other processes,
+  leading to higher space overhead. Additionally, it also makes it harder for nodes to enter and exit the distributed
+  system since that means we need to dynamically allocate space for more clocks on each node. </p>
+
+
+<p><em>L. Lamport. Time, Clocks, and the Ordering of Events in a Distributed SystemLinks to an external site..
+    Communications of the ACM, July 1978, pages 558-564.</em></p>

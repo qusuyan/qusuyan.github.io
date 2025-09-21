@@ -1,0 +1,94 @@
+---
+layout: post
+status: publish
+published: true
+title: Continuous Profiling
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 273
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=273
+date: '2022-02-26 00:28:39 +0000'
+date_gmt: '2022-02-26 00:28:39 +0000'
+categories:
+- Paper Review
+- Machine Learning Systems
+- Operating System
+tags: []
+comments: []
+excerpt: <p>Profiling systems typically fall into one of the two categories. The first group uses binary modification,
+  compiler
+  support, or direct simulation of programs to gather measurements. They introduce significant overhead and usually
+  require significant user intervention, so they are not deployed on production systems. The other group uses
+  statistical sampling to collect fine-grained information on program or system behavior. They incur much smaller
+  overhead but relies on existing source of interrupts (e.g. timer interrupts) to generated samples. This prevents them
+  from sampling within those interrupt routines and can result in correlation between sampling and other system activity
+  (bias). </p>
+---
+
+<h2>Summary</h2>
+
+
+<p>Profiling systems typically fall into one of the two categories. The first group uses binary modification, compiler
+  support, or direct simulation of programs to gather measurements. They introduce significant overhead and usually
+  require significant user intervention, so they are not deployed on production systems. The other group uses
+  statistical sampling to collect fine-grained information on program or system behavior. They incur much smaller
+  overhead but relies on existing source of interrupts (e.g. timer interrupts) to generated samples. This prevents them
+  from sampling within those interrupt routines and can result in correlation between sampling and other system activity
+  (bias). </p>
+
+
+<p>The profiling system presented in this paper falls into the second category. It consists of two parts: a data
+  collection subsystem that runs during program execution, and a suite of analysis tools that analyzes the collected
+  data. </p>
+
+
+<p>The data collection subsystem consists of 3 interacting components: a kernel device driver that services performance
+  counter interrupts; a user-mode daemon process that extracts samples from the driver; and a modified system loader and
+  other mechanisms for identifying executable images and where they are loaded by each running process. </p>
+
+
+<p>First, each processor generates a high-priority interrupt after a specified number of events have occurred. The
+  kernel device driver handles this interrupt by recording the PID of the running process, the program counter (PC), and
+  the event type causing the interrupt. Since interrupts are frequently issued, the kernel device driver needs to handle
+  them quickly. The driver keeps a per-process hash table to keep track of the number of times each (PID, PC, EVENT)
+  tuple has occurred. This data structure avoids copying the recorded data to userspace on every timer interrupt. The
+  hash table is implemented as an array of fixed size buckets. Whenever a new (PID, PC, EVENT) tuple is to be added to a
+  full bucket, an old tuple in that bucket is evicted and copied to the user-mode daemon through a pair of overflow
+  buffers. This basic design is efficient since it is cache friendly and synchronization is only needed when copying
+  data into buffers. This paper handles this synchronization through inter-process interrupts. The user-mode daemon will
+  map the events to the corresponding location in the executable image (through PID and PC) and store the records to
+  disk. </p>
+
+
+<p>After the samples are collected through the data collection subsystem, the analysis tool can be used offline to
+  analyze the profiling results. It will identify for each instruction a frequency (number of times it is executed for a
+  fixed time period), a cpi (average number of cycles spent in one execution), and a set of culprits (possible
+  explanations for any wasted issue slots). </p>
+
+
+<p>Estimating frequency and cpi is tricky since the data collection subsystem only shows the amount of time spent in
+  this instruction relative to overall execution time, indicated by the sample count. More specifically, for each
+  instruction $i$, its frequency $F_i$, cpi $C_i$, and sample frequency $S_i$ should satisfy $F_i\cdot C_i=S_i$. $S_i$
+  can be calculated directly from the sampling result. The analysis tool estimates $F_i$ through the following: it first
+  does a static analysis on the program to identify the instructions that are guaranteed to execute for the same amount
+  of time (i.e. basic blocks). This splits the program into a control-flow graph of basic blocks. It then runs each
+  basic block $I$ individually to obtain an approximate $\sum_{i\in I} C_i$. Then the estimated frequency is
+  $F_j=\sum_{i\in I} S_i/\sum_{i\in I} C_i$ for any instruction $j\in I$. Then it can calculate each $C_j$ accordingly.
+</p>
+
+
+<p>To find the list of all possible culprits, this paper separately discusses static and dynamic causes. For static
+  causes, it schedules instructions in each basic block using an accurate model of the processor issue logic and assume
+  no dynamic stalls. With detailed record-keeping and accurate model, it is able to identify the static causes. For
+  dynamic causes, it uses different techniques for each cause to check if it is possible that the dynamic stall is
+  caused by this. </p>
+
+
+<p><em>Anderson, Jennifer M., et al. "Continuous profiling: Where have all the cycles gone?." ACM Transactions on
+    Computer Systems (TOCS) 15.4 (1997): 357-390.</em></p>

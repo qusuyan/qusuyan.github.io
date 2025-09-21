@@ -1,0 +1,92 @@
+---
+layout: post
+status: publish
+published: true
+title: Distributed State
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 228
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=228
+date: '2022-02-05 22:15:52 +0000'
+date_gmt: '2022-02-05 22:15:52 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>State is all of the observable properties of a program and its environment, including instructions,
+  variables, files, input and output devices, etc. The state of a distributed system is partitioned among several
+  machines. Distributed state is loosely defined as the information retained in one place that describes something, or
+  is determined by something, somewhere else in the system. A key note is that states like hardware types that are only
+  used by the local machine are not part of the distributed state by this definition. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>State is all of the observable properties of a program and its environment, including instructions, variables, files,
+  input and output devices, etc. The state of a distributed system is partitioned among several machines. Distributed
+  state is loosely defined as the information retained in one place that describes something, or is determined by
+  something, somewhere else in the system. A key note is that states like hardware types that are only used by the local
+  machine are not part of the distributed state by this definition. </p>
+
+
+<p>The distributed state has three main advantages: </p>
+
+
+<ol>
+  <li>Distributed state improves <strong>performance</strong>. A great example is cache. When some state stored on a
+    different machine is cached locally, there is no need to go through the network round trip to retrieve the state
+    again. </li>
+  <li>Distributed state provides <strong>coherency</strong>. When machines coordinate through message passing, they must
+    follow some protocols. These protocols require each party to know something about the other party in a
+    communication, e.g. sequence number to decide the order of messages and if the message is duplicated. </li>
+  <li>Distributed state provides <strong>reliability</strong>. When a piece of information is duplicated across multiple
+    machines, the distributed system can tolerate failure of one copy. </li>
+</ol>
+
+
+<p>Yet distributed state also introduces several difficulties: </p>
+
+
+<ol>
+  <li>When state is distributed on multiple machines, it is hard to keep them <strong>consistent</strong>. Namely, what
+    happens to the other copies when one copy gets updated? Existing approaches fall into three categories:
+    <ol>
+      <li>Detect stale data on use. One example is DNS name resolution. When the domain is moved to a different machine,
+        the old DNS record will point to invalid address which can no longer be accessed. </li>
+      <li>Prevent inconsistency. This approach masks the window of inconsistency by making the stale copies inaccessible
+        until they are updated. One example is the Sprite system. </li>
+      <li>Tolerate inconsistency. In these systems, errors caused by stale state information may do no harm. One example
+        is online games where each player (client) sees a slightly delayed game compared with the game server. </li>
+    </ol>
+  </li>
+  <li>A second problem is <strong>crash sensitivity</strong>, or <strong>fault tolerance</strong>. If each machine keeps
+    a unique partition of the overall distributed state, then fault on one machine may lead to permanent data lost or
+    even the unavailability of the entire system. Hence backup machines are necessary. However, how can backup machines
+    take over the responsibility of failed primary machine seamlessly is non-trivial. One has to resolve the following
+    problems:
+    <ul>
+      <li>The communication protocol needs to redirect all message traffic to the replacement machine when the primary
+        fails. </li>
+      <li>Failure may occur during the window of inconsistency, and the communication protocol needs to keep stale
+        copies updated without waiting for the failed primary machine to reboot. </li>
+      <li>When the primary machine restarts, it must be able to use replicas to bring its state into consistency. </li>
+    </ul>
+  </li>
+  <li>Keeping distributed states introduces time and space <strong>overheads</strong>. Time overheads are incurred
+    mainly in maintaining consistency (e.g., update the backups before replying to the client); the most obvious source
+    of space overhead is the storage needed to replicate the same state. The overhead problems are closely related to
+    the degree of sharing and the rate of modification: with more replicas, keeping them consistent requires more
+    effort; if the state is updated frequently, propagating these changes to all replicas can also be expensive. </li>
+  <li>Distributed states are complicated to design, implement and maintain. </li>
+</ol>
+
+
+<p><em>John K Ousterhout. 1991. The role of distributed state. , 199–217 pages</em></p>

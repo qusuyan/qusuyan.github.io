@@ -1,0 +1,113 @@
+---
+layout: post
+status: publish
+published: true
+title: Remote Procedure Call (RPC)
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 204
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=204
+date: '2022-01-29 10:24:36 +0000'
+date_gmt: '2022-01-29 10:24:36 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>Procedure call is a mechanism for transferring control and data within a program running on a single
+  computer (e.g. function call). Remote procedure call is an extension to this mechanism where the control and data are
+  transferred to a remote machine through network. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+{{page.excerpt}}
+
+<p>The basic program structure is based on the concept of <em>stubs</em>. A single RPC involves 5 pieces of code: the
+  <em>user</em>, the <em>user-stub</em>, <em>RPCRuntime</em> (on both client and server side), the <em>server-stub</em>,
+  and the <em>server</em>. A <em>stub</em> is responsible for packing the messages (procedure call and arguments for
+  <em>user-stub</em>, or results for <em>server-stub</em>) in to packages and ask RPCRuntime to transmit them, and for
+  unpacking the packages received from RPCRuntime. Once the communication interface is determined, they can be
+  automatically generated.
+</p>
+
+
+<p>An immediate problem is how to do binding. Binding includes two parts: naming (to specify which server and procedure
+  the client wishes to bind to) and location (the server address). This paper uses a <em>type</em> (procedure
+  identifier, argument and return types), and an <em>instance</em> (the server with this procedure) to specify the name
+  of an interface. It then stores the information in Grapevine, a distributed database. Grapevine stores two types of
+  entries: individuals (instance to machine address) and groups (procedure type to instances that implements the
+  procedure). A server can expose a new procedure by adding the corresponding entries in Grapevine. To invoke a RPC, the
+  caller first queries Grapevine for the address of an instance (callee) implementing this RPC (assigned dynamically by
+  Grapevine or specified by the caller). It then attempts to bind to the callee. If the binding succeeds and the callee
+  is still providing the interface, it will return to the caller a unique ID, which will be used to identify the caller
+  in subsequent communications. Notice that a server machine loses all unique IDs on crash or restart, so the user can
+  infer these events based on server responses. </p>
+
+
+<figure class="wp-block-image size-full"><img src="/assets/img/rpc/msgs.png" alt="" class="wp-image-205" /></figure>
+
+
+<p>The transport protocol used by RPC aims for low latency (end-to-end) and high scalability (so that a substantial
+  amount of users can bind to the same server). In this protocol, not all packages are explicitly acknowledged: within a
+  short time period, the result of a remote procedure and the next procedure call from the same user process (since
+  users stall while waiting for results from the server) can act as an acknowledgement. However, if the response is not
+  delivered within a timeout window (with back-off mechanisms), the RPCRuntime will resend the packages. If the
+  receiving side has received the package the first time, a explicit acknowledgement is sent. This paper uses a call ID
+  to identify a RPC: all packages (including initial request, retransmission, result, and explicit acknowledgement)
+  includes this ID. A call ID consists of a user machine identifier, a user-machine-local process identifier, and a
+  monotonically increasing sequence number. </p>
+
+
+<p>If the message is too large to fit in a single package, it is broken into multiple packages. A explicit
+  acknowledgement is required for all packages except the last one. This paper sends the packages in a sequential
+  manner: the next package is not sent until the first package is acknowledged. This scheme reduces the amount of data
+  transmitted in presence of failures: there is at most one package in air at any moment. </p>
+
+
+<figure class="wp-block-image size-full"><img src="/assets/img/rpc/large-msgs.png" alt="" class="wp-image-206" />
+</figure>
+
+
+<p>On the server side, in order to reduce the cost for creating and destroying processes, this paper maintains a stock
+  of idle processes (thread pool) that handles incoming packets. During heavy load, the server machine creates transient
+  processes that are destroyed after procedure finishes. Another optimization used by RPC is that software layers
+  corresponding to the normal layers of a protocol hierarchy are skipped if the caller and callee are on the same
+  network. </p>
+
+
+<h2 id="strength">Strength</h2>
+
+
+<ul>
+  <li>RPC semantics closely match that of local function calls, making it easy to use. </li>
+  <li>The use of Grapevine allows servers to export new interfaces without interfering with the clients. </li>
+  <li>Grapevine enhances security: only well-defined procedures exposed to Grapevine can be invoked from the user side.
+    It also serves as an authentication service for encryption key distribution. </li>
+  <li>The transportation layer is well-designed for ad hoc communications common in RPC: for RPC with short computing
+    time and requires only small packets (which is common), only two packets are exchanged between the caller and
+    callee. </li>
+  <li>The transportation layer transports large messages in a sequential manner. This scheme limits the number of
+    packets in air to 1, posing small load to the network. </li>
+</ul>
+
+
+<h2 id="weakness">Weakness</h2>
+
+
+<ul>
+  <li>The transport protocol is not good at transmitting large data streams compared to other existing protocols
+    dedicated for transmitting large amount of data. </li>
+  <li>Sequential packet transmission increases end-to-end latency. This is less significant in a distributed system
+    (without geo-distribution) where network latency is relatively low. </li>
+</ul>
+
+
+<p><em>Andrew D. Birrell and Bruce Jay Nelson. 1984. Implementing Remote ProcedureCalls.ACM Trans. Comput. Syst.2, 1
+    (feb 1984), 39–59. https://doi.org/10.1145/2080.357392</em></p>

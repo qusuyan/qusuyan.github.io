@@ -1,5 +1,7 @@
 - name: About
   link: /
+- name: CV
+  link: /assets/file/resume.pdf
 - name: Research
   link: /research
 - name: Blog 

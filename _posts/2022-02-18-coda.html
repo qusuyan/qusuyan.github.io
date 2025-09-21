@@ -1,0 +1,107 @@
+---
+layout: post
+status: publish
+published: true
+title: Coda
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 238
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=238
+date: '2022-02-18 17:21:41 +0000'
+date_gmt: '2022-02-18 17:21:41 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>Coda builds on AFS to improve availability by leveraging file caches on clients. It behaves like AFS when
+  client is connected to the server to retain the high scalability of AFS. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>Coda builds on AFS to improve availability by leveraging file caches on clients. It behaves like AFS when client is
+  connected to the server to retain the high scalability of AFS. </p>
+
+
+<p>Coda introduces some new concepts: <em>disconnected operations</em>, which are the operations performed when client
+  is disconnected from the server. When a client is disconnected from the server, disconnected operations on the local
+  cache can still be performed. The operations are logged locally and are sent to the server when the connection is
+  restored. Coda thereby achieves high availability. Coda also introduces <em>volume storage group</em> (VSG), or the
+  set of replication sites of a volume (i.e. the servers with a copy of the volume). </p>
+
+
+<p>One major difference of Coda from AFS is that, instead of assigning each file a server responsible for all updates to
+  that file, Coda allows updates to be made on more than one server with a replicated file, which will propagate the
+  changes to other replications. During a disconnection, a client may have access to only a subset of a VSG, which we
+  term accessible VSG (AVSG). In Coda, modifications are first sent to AVSG from the client, and eventually propagated
+  to the missing VSG sites. This paper did not mention what happens in presence of concurrent updates to different
+  servers. </p>
+
+
+<p>When disconnected from the servers, Coda relies on the locally cached copy of files for update. At any moment a Coda
+  client must be in one of the three states: <em>hoarding state</em>, where the client is still connected to the server
+  and performs like AFS; <em>emulation state</em>, where the client is disconnected from the server; <em>reintegraton
+    state</em>, where the connection is restored and client needs to resynchronize with the server (in AVSG). </p>
+
+
+<p>During the hoarding state, Coda behaves normally as AFS in that it performs all updates on local cache and send the
+  update to the server on close. However, since disconnection can happen anytime, we want to make sure that the files
+  that are most likely be used during a sudden disconnection are cached locally. Coda hence manages the cache using a
+  prioritized algorithm. The key idea is that the users can assign each file different <em>hoard priorities</em> and the
+  prioritized algorithm will evaluate the current priority of a cached object based on its hoard priority and recent
+  usage. Notice that since a file's current priority changes over time (since it relies on recent usages), it is
+  possible that a file cached locally has lower priority than a file not cached (e.g. File A has a hoard priority of 5
+  and is not used while File B has a hoard priority of 0 but is used recently: File B will have a higher priority after
+  use but gradually File A will have a higher priority). To compensate this, the client does a hoard walking that
+  reevaluates the priority of each file and replace the caches. Finally, to open a cached file, the client will still
+  have to perform a path resolution, so the parent directories of a cached file cannot be evicted before the cached file
+  gets evicted. </p>
+
+
+<p>When the client is disconnected, it enters the emulation state, during which it will perform actions normally handled
+  by the servers. This include creating a new file, during which it will generate dummy file identifiers (fids). During
+  the emulation state, all requests are performed against the cached local copy instead of going to the Coda server, so
+  requests on a file not cached locally will fail. The Coda client keeps a replay log locally that contains enough
+  information to replay the updates on the server. Lastly, since we no longer have the remote copy, all modified files
+  are kept in cache with highest priority and are flushed more frequently. </p>
+
+
+<p>When the connection is restored, the client enters a reintegrations state. The client will first request fids for
+  newly created files from the Coda server, then send the replay log to each server in AVSG in parallel. The Coda
+  server, upon receiving the replay log, will perform the replay algorithm one volume at a time. For each volume, it
+  will first parse the replay log, lock all objects referenced, and validate and execute all operations in the log. Then
+  the actual data are transferred from client to server (a.k.a <em>back-fetching</em>). Finally it will commit the
+  updates in one transaction (per volume) and release all locks. However, replay may fail because another update to the
+  same file occurred during disconnection. Coda asks the client to locally resolve any conflicts in updates. </p>
+
+
+<h2 id="strength">Strength</h2>
+
+
+<ul>
+  <li>Coda makes the file available during disconnection at a low cost. </li>
+  <li>Similar to AFS, Coda is scalable since most operations on the critical path are performed locally. </li>
+</ul>
+
+
+<h2 id="weakness">Weakness</h2>
+
+
+<ul>
+  <li>Similar to AFS, Coda is not good at sharing. </li>
+  <li>Coda caches objects at the granularity of a whole file. This is not friendly for huge files or if the client only
+    need a small portion of a file. </li>
+  <li>Coda is not very graceful during emulation state if the disk resource at client is exhausted. </li>
+</ul>
+
+
+<p>Satyanarayanan, Mahadev, et al. "Coda: A highly available file system for a distributed workstation
+  environment." <em>IEEE Transactions on computers</em> 39.4 (1990): 447-459.</p>

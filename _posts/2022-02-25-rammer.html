@@ -1,0 +1,106 @@
+---
+layout: post
+status: publish
+published: true
+title: Rammer
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 271
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=271
+date: '2022-02-25 00:12:42 +0000'
+date_gmt: '2022-02-25 00:12:42 +0000'
+categories:
+- Paper Review
+- Machine Learning Systems
+tags: []
+comments: []
+excerpt: <p>Rammer is a deep learning compiler that holistically schedules the DNN operators in a data flow graph to
+  maximize the hardware utilization. </p>
+---
+
+<h2>Summary</h2>
+
+
+<p>Existing DNN frameworks manages the DNN operators in a data flow graph. The library (e.g. PyTorch) schedules each
+  operator individually and relies on the hardware scheduling (e.g. cuDNN) to exploit parallelism within operators. This
+  two-layer scheduling scheme works well only when the kernel launching time is largely negligible compared to execution
+  time and when there is sufficient intra-operator parallelism to saturate all processing units, but precludes
+  opportunities to run multiple operators in parallel on the same GPU. </p>
+
+
+<div class="wp-block-image">
+  <figure class="aligncenter size-full"><img src="/assets/img/rammer/sota.png" alt="" class="wp-image-282" /><br />
+    <figcaption>(a) shows the two-layer scheduling approach; (b) is a more efficient scheduling plan. Notice that this
+      more aggressive plan requires that Operator 0 and 1 do not depend on each other. </figcaption>
+  </figure>
+</div>
+
+
+<p>Rammer is a deep learning compiler aimed to unify the inter- and intra-operator scheduling. It defines each DNN
+  operator as <em>rOperator</em> and splits the rOperators into <em>rTasks</em>. A rTask is the smallest unit of
+  scheduling and will run on a single processing unit (e.g., SM in GPU). We can think of rTasks as thread blocks. Rammer
+  also introduces a special rTask, namely <em>barrier rTask</em>, that stalls execution until a set of rTasks has
+  completed. Another abstraction that Rammer provides is <em>rKernels</em>, which corresponds to the actual
+  implementation of rOperators (e.g., if the rOperator is convolution, then rKernel can be matrix multiplication, FFT,
+  etc). Notice that different rKernels will split the rOperator into different rTasks.</p>
+
+
+<p>Rammer abstracts the hardware as a <em>virtualized parallel device</em> (vDevice, corresponding to GPUs) composed of
+  multiple <em>virtualized execution units</em> (vEU, corresponding to the SMs). This paper achieves single-layer
+  scheduling by assigning rTasks to different vEUs at compile time, and then pin the compiled vEUs on the hardware
+  processing units. From the DNN model, Rammer generates a static execution plan. This plan is broken into multiple
+  parts called <em>rProgram</em>, which is represented as a 2D array of rTasks where the first index represents on which
+  vEU this rTask is assigned to and the second index represents the order in which it will be run on that vEU. Each
+  rProgram runs on a single rDevice. Rammer thereby achieves scheduling over multiple hardware devices (GPUs). </p>
+
+
+<div class="wp-block-image">
+  <figure class="aligncenter size-full"><img src="/assets/img/rammer/architecture.png" alt=""
+      class="wp-image-283" /><br />
+    <figcaption>Rammer architecture. Accelerator refers to the hardware processing units. </figcaption>
+  </figure>
+</div>
+
+
+<p>The architecture of Rammer is shown in the figure above. After obtaining the DNN model, Rammer first transforms it to
+  a DFG of rOperators. It does some compile-time profiling to figure out which rKernel is the most efficient through
+  profiling and heuristics. Then the rOperator can be split into rTasks. Rammer uses a Wavefront Scheduling Policy,
+  which is essentially a BFS on the DFG of rOperators. Here wavefront refers to the rTasks that do not depend on any
+  other unscheduled rTasks. The policy iterates through the rTasks in the wavefront and assigns the current rTask to the
+  vEU that becomes available first (based on profiling results). However, if the profiling result shows that assigning
+  the current rTask to the current rProgram does not save execution time, it will put the rTask to a new rProgram that
+  will be run on a different vDevice instead. </p>
+
+
+<h2>Strength</h2>
+
+
+<ul>
+  <li>Rammer exploits the inter- and intra-operator parallelism holistically. It can provide higher GPU utilization
+    compared with traditional two-level scheduling</li>
+  <li>The scheduling plan is statically generated, so it does not impose any runtime overhead. </li>
+</ul>
+
+
+<h2>Weakness</h2>
+
+
+<ul>
+  <li>Rammer is only beneficial when there is not sufficient intra-operator parallelism (e.g. in inference workloads) or
+    when the kernel launching overhead is largely negligible. Yet often times neither is true in typical training
+    workloads. </li>
+  <li>Rammer can only parallelize two operators if they are independent. With linear models (e.g, ResNet) there is not
+    much Rammer can do. </li>
+  <li>Rammer generates scheduling plan statically. If the underlying hardware changes dynamically (e.g., shared between
+    multiple models in data centers), it cannot adapt to the changes. </li>
+</ul>
+
+
+<p><em>Ma, Lingxiao, et al. "Rammer: Enabling Holistic Deep Learning Compiler Optimizations with {rTasks}." 14th USENIX
+    Symposium on Operating Systems Design and Implementation (OSDI 20). 2020.</em></p>

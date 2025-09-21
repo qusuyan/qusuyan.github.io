@@ -1,0 +1,113 @@
+---
+layout: post
+status: publish
+published: true
+title: The GPU Computing Era
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 197
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=197
+date: '2022-01-27 23:46:42 +0000'
+date_gmt: '2022-01-27 23:46:42 +0000'
+categories:
+- Machine Learning Systems
+- Architectures
+tags: []
+comments: []
+excerpt: <p>Graphics Processing Units (GPUs) are designed for parallel computing. Its initial purpose and its main
+  driving force
+  are the real-time graphics performance needed for render complex high-resolution 3D scenes at interactive frame rates
+  for games. These workloads require huge amount of computation to render each pixel in a timely manner. Yet the work to
+  calculate each pixel can be done in parallel and the are largely analogous. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+{{page.excerpt}}
+
+
+<p>At beginning, GPUs are exclusively for graphics rendering and uses programming interfaces like OpenGL. Early attempts
+  to use GPU for computation requires writing the code with these graphics interface. The first general purpose GPU with
+  CUDA cores was GeForce 8800 introduced in 2006. It has CUDA cores and is programmable in standard languages like C.
+</p>
+
+
+<p>CUDA is a hardware and software coprocessing architecture for parallel computing. A compiled CUDA program can be
+  executed on any size GPU, automatically scaling to the number of cores and threads. It is organized into a host
+  program consisting sequential threads running on the host CPU, and parallel kernels suitable for execution on GPU. The
+  programmer or the compiler organizes the threads into thread blocks, the threads in the same thread block will be
+  placed close to each other so they can communicate and coordinate at a relatively low cost through a local shared
+  memory. Each GPU can run multiple grids of thread blocks that can access a per-application global memory space. </p>
+
+
+<p>A GPU consists of multiple components. Take Fermi GPU as an example (shown in figure below), it consists of multiple
+  streaming multiprocessor (SM, collection of cores), a GigaThread responsible for scheduling different thread blocks to
+  different SM, a host interface that connects to the host through PCIe, 6 DRAM interface accessing the GPU DRAM, and a
+  L2 cache shared across the SMs. </p>
+
+
+<div class="wp-block-image">
+  <figure class="aligncenter size-large"><img src="/assets/img/gpu-computing-era/architecture.png" alt=""
+      class="wp-image-198" /></figure>
+</div>
+
+
+<p>SM (as shown in the figure below) employs the single-instruction multiple-thread (SIMT, or SIMD, single-instruction
+  multiple-data) architecture. The SIMT instruction logic manages concurrent threads in groups of 32 parallel threads
+  called wraps. A CUDA thread block comprises one or more wraps. This architecture allows the cores the be placed more
+  compactly, but data dependent control flows within the same wrap can lead to divergence (different paths) and impact
+  performance. Each SM also has a local shared memory and a L1 cache. Fermi GPU manages host memory, GPU DRAM, and SM's
+  local memory in a unified memory space. </p>
+
+
+<div class="wp-block-image">
+  <figure class="aligncenter size-full"><img src="/assets/img/gpu-computing-era/sm.png" alt="" class="wp-image-199" />
+  </figure>
+</div>
+
+
+<p>Table below shows a comparison of clock speed of modern processing units. The compute speed of CPUs are much faster
+  than GPUs ($5\times$). However, GPU cores are much more compact than CPU cores: a CPU core can take $50\times$ more
+  area than a GPU core. As a result, CPUs are better for sequential execution and GPUs are better at parallel execution.
+  This leads to a heterogeneous CPU+GPU processing system. This design delivers better performance than a homogeneous
+  system in various workloads ranging from 0.5% sequential and 99.5% parallel workload to 75% sequential and 25%
+  parallel workload. </p>
+
+
+<figure class="wp-block-table aligncenter">
+  <table>
+    <tbody>
+      <tr>
+        <td class="has-text-align-center" data-align="center"> <strong>Computing Unit</strong></td>
+        <td class="has-text-align-center" data-align="center"><strong>Clock Speed (MHz)</strong> </td>
+      </tr>
+      <tr>
+        <td class="has-text-align-center" data-align="center">K80</td>
+        <td class="has-text-align-center" data-align="center">560</td>
+      </tr>
+      <tr>
+        <td class="has-text-align-center" data-align="center">P100</td>
+        <td class="has-text-align-center" data-align="center">1126</td>
+      </tr>
+      <tr>
+        <td class="has-text-align-center" data-align="center">V100</td>
+        <td class="has-text-align-center" data-align="center">1132</td>
+      </tr>
+      <tr>
+        <td class="has-text-align-center" data-align="center">A100</td>
+        <td class="has-text-align-center" data-align="center">765</td>
+      </tr>
+      <tr>
+        <td class="has-text-align-center" data-align="center"> Intel Xeon Platinum</td>
+        <td class="has-text-align-center" data-align="center">2~4 GHz</td>
+      </tr>
+    </tbody>
+  </table>
+</figure>

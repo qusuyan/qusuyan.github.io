@@ -1,0 +1,130 @@
+---
+layout: post
+status: publish
+published: true
+title: Why Do Computers Stop and What Can Be Done About It?
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 181
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=181
+date: '2022-01-26 06:23:28 +0000'
+date_gmt: '2022-01-26 06:23:28 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>In distributed systems, availability and reliability are two important properties. Availability is doing the
+  right thing within the specified response time, and reliability is not doing the wrong thing. </p>
+---
+
+<h2 id="fault-tolerance">Fault Tolerance</h2>
+
+{{page.excerpt}}
+
+<p>$$Availability = \frac{MTBF}{MTBF+MTTR}$$</p>
+
+
+<p>For example, conventional well-managed transaction processing systems, systems fail about once every two weeks, and
+  recovery takes 90 min (notice that this journal was written in 1985). Hence it reaches a 99.6% availability. </p>
+
+
+<p>A survey on failures of systems shows that, excluding the "infant mortality" failures (recurring failures often due
+  to bugs in new software or hardware products) that accounts for 1/3 of the failures, system administration, including
+  operator actions, system configuration, and system maintenance, is the main source of failure, accounting for 42% of
+  rest of failures. Software bugs account for 25%, hardware failures account for 18%, and environment (power,
+  communications, facilities) accounts for 14%. In contrast to historical records, system administration and software
+  bugs are now the main sources of failures. <strong>The key to high availability is tolerating operations and software
+    faults. </strong></p>
+
+
+<p>To tolerate operation faults, the top priority is to reduce administrative mistakes by making self-configured systems
+  with minimal maintenance and minimal operator interaction. Maintenance, on the other hand, is a more controversial
+  topic: new and changing systems have higher failure rates ("infant mortality"), while bugfixes should be installed as
+  soon as possible. For hardware, the study shows that one must install hardware fixes in a timely fashion. But software
+  updates and fixes are much more frequent than hardware fixes. The best practice is to install a software fix if the
+  bug is causing the outages or there is a major software release. </p>
+
+
+<p>Building fault-tolerant software involve 5 key components:</p>
+
+
+<ul>
+  <li><strong>Software Modularity</strong>: software should be hierarchically decomposed into small modules so that
+    failure of a module does not propagate to other modules. One way is to divide into processes that communicate
+    through message passing. </li>
+  <li><strong>Fail-Fast</strong>: being fail-fast means that a module either functions correctly or be detected as
+    faulty immediately. Such software has small fault detection latency and hence low MTTR. </li>
+  <li><strong>Process-Pairs</strong>: the process of developing an industrial-level software eliminates most of "hard"
+    software bugs that always fail on restart and retry. Hence most production software bugs are soft Heisenbugs that go
+    away when you look at them (e.g. bugs present in release mode but not in debug mode, race condition, etc). These
+    software bugs often goes away in a module restart / retry. Hence a simple way to improve availability is to
+    configure fallback software modules that are used on primary module failure. We typically use "process-pairs" since
+    studies have shown that a process triples do not improve MTBF because other parts of the system can have orders of
+    magnitude worse MTBF. There are several ways to design process-pairs:
+    <ul>
+      <li><strong>Lockstep</strong>: primary and backup processes synchronously execute the same instruction on
+        different processors. This approach gives no tolerance of Heisenbugs since they are executing the same
+        instruction sets and will fail in exactly the same way. </li>
+      <li><strong>State Checkpointing</strong>: the primary does the computation and sends state changes and reply
+        messages to the backup so that when primary fails, the session can switch to the backup. The down side is that
+        this is hard to program. </li>
+      <li><strong>Automatic Checkpointing</strong>: this scheme is much like state checkpointing except that it is
+        managed automatically by the kernel: kernel will log all requests and messages passing so that on primary
+        failure, the backup can replay the history. This scheme is more expensive than state checkpointing. </li>
+      <li><strong>Delta Checkpointing</strong>: this scheme evolves from state checkpointing: instead of messaging the
+        physical updates resulting from computation, logical updates are sent and the computation is needed to merge the
+        logical updates in the backup. This has an additional advantage that bugs in primary is less likely to corrupt
+        the backup since they may not share the exact same state. </li>
+      <li><strong>Persistence</strong>: a session is checkpointed to the backup on opening and closing, so on primary
+        failure, the backup will not be aware of the on-going session at time of failure. This scheme is the easiest to
+        program and have low overhead. </li>
+    </ul>
+  </li>
+  <li><strong>Transactions for Data Integrity</strong>: transactions have the ACID property: <em>Atomicity</em> means
+    either all or none of the actions in a transaction should happen; <em>Consistency</em> means each transaction should
+    see a correct picture of the state; <em>Integrity</em> means the transaction should be a correct state
+    transformation; <em>Durability</em> means that effects of committed transactions are preserved in presence of
+    failure. Transactions provide simple interfaces for reasoning, and many errors can be handled by simply aborting the
+    transaction. A classic implementation is to ensure consistency using locking and ensure durability and atomicity
+    through logging. </li>
+  <li><strong>Combine Transaction and Persistence Process-Pair</strong>: Persistence is the only process-pair that is
+    easy to implement, but it suffers from the amnesia of the on-going session at primary failure. However, transactions
+    provide a solution: since the transaction mechanism knows how to undo all changes of an incomplete transaction, the
+    backup can simply abort all uncommitted transactions on primary failure. These two mechanisms together can build
+    highly available systems that lives through hardware failures or Heisenbugs. </li>
+</ul>
+
+
+<h2 id="fault-tolerant-communication">Fault-Tolerant Communication</h2>
+
+
+<p>Communication lines are the most unreliable part of a distributed system. They are numerous and have poor MTBF. In
+  hardware, fault-tolerant communication is obtained by having multiple data paths with independent failure models; in
+  software, fault-tolerant communication is obtained through the abstraction of sessions. A session has simple
+  semantics: a sequence of messages are sent via the session. When a communication path fails, another path is tried.
+  Process-pairs hide behind sessions so they are transparent above the session layer. </p>
+
+
+<h2 id="fault-tolerant-storage">Fault-Tolerant Storage</h2>
+
+
+<p>The basic form of fault-tolerant storage is replication of a file on two media with independent failure
+  characteristics, hence storing a replica in a remote location gives good improvements to availability. Since they
+  executes in different environments (hardware, system configuration, etc), this also gives excellent protection against
+  Heisenbugs. This can be done in several ways: we can have exact replicas with synchronized updates, a checkpoint and a
+  transaction journal, and etc. </p>
+
+
+<p>Another technique is to partition the data across discs or nodes to limit the scope of failure, so that local users
+  can still access local data even when remote node is down or network fails. </p>
+
+
+<p>Gray, Jim. "Why do computers stop and what can be done about it?." <em>Symposium on reliability in distributed
+    software and database systems</em>. 1986.</p>

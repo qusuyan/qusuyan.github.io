@@ -1,0 +1,98 @@
+---
+layout: post
+status: publish
+published: true
+title: cuDNN
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 211
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=211
+date: '2022-02-05 17:01:43 +0000'
+date_gmt: '2022-02-05 17:01:43 +0000'
+categories:
+- Paper Review
+- Machine Learning Systems
+tags: []
+comments: []
+excerpt: <p>cuDNN is a library of efficient implementations of deep learning primitives. The main goal of cuDNN is to
+  simplify maintenance of workloads in the fast development of hardware like GPUs and TPUs. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>cuDNN is a library of efficient implementations of deep learning primitives. The main goal of cuDNN is to simplify
+  maintenance of workloads in the fast development of hardware like GPUs and TPUs: the workloads can use cuDNN as
+  arithmetic primitives without concerning about low level implementations. Hence this library needs to: 1. be easy to
+  integrate into existing frameworks; 2. be optimized for performance and memory usage. </p>
+
+
+<p>cuDNN supports forward and backward propagation variants of all its routines in single and double precision
+  floating-point arithmetic. This include convolution, pooling, and activation functions. Pooling and activation
+  functions are relatively easy to implement so we focus on convolution here. There are many ways to implement
+  convolution efficiently. The goal is to achieve performance as close to matrix multiplication (a well-studied and
+  highly-optimized workload) as possible without using any auxiliary memory from the host machine. GPU memory has high
+  bandwidth but relatively small capacity compared with auxiliary memory. Convolutions are traditionally implemented in
+  one of the 3 ways: </p>
+
+
+<p>1. Unroll the convolution filter and input images to reduce it to matrix multiplications. As shown in figure below.
+  This approach achieves great performance (since matrix multiplication is well optimized), but incurs high memory
+  overhead as each cell on the input image is duplicated multiple times. To compensate this, the matrix can be created
+  during calculation: we can divide one matrix (corresponding to the input images) into multiple submatrices and
+  multiply one submatrix with another and materialize the next submatrix at the same time. </p>
+
+
+<figure class="wp-block-image size-full"><img src="/assets/img/cudnn/conv.png" alt="" class="wp-image-213" /><br />
+  <figcaption>N: batch size; C: number of (color) channels; H: image height; W: image width; K: number of filters; R:
+    height of filters; S: width of filters; u: stride in vertical direction; v: stride in horizontal direction; pad_h:
+    padding in horizontal direction; pad_w: padding in vertical direction. These are all tunable parameters for
+    convolution in cuDNN</figcaption>
+</figure>
+
+
+<p>2. Using Fast Fourier Transform. FFT can significantly lower the work complexity of the convolutions, but it uses a
+  significant amount of temporary memory since the filer needs to be padded to be the same size as the inputs. </p>
+
+
+<p>3. Compute convolution directly. Note that this can be very efficient but requires a large number of specialized
+  implementations to handle the many corner cases, making it hard to maintain. In addition, such implementations
+  typically work well for some convolutions but not the others depending on the 11 parameters shown in the above figure.
+</p>
+
+
+<p>The 3 implementations each perform better than the other 2 under different scenarios, with different parameters,
+  different running environment (e.g., GPU memory available, compute power, etc), or something else. In practice, all 3
+  are implemented in cuDNN and is configurable through its parameters. </p>
+
+
+<h2 id="strength">Strength</h2>
+
+
+<ul>
+  <li>A library of compute primitives reduces the amount of efforts to maintain machine learning models and workloads:
+    it does not require much code change to reoptimize the code on a different hardware. </li>
+  <li>This library makes developing new machine learning workloads easy, as they do not need to worry about the detail
+    implementations of these arithmetic primitives. </li>
+  <li>cuDNN provides a huge parameter space. It provides flexibility. </li>
+</ul>
+
+
+<h2 id="weakness">Weakness</h2>
+
+
+<ul>
+  <li>The abstraction of cuDNN library restricts flexibility. The programmer has to perform computations within the
+    framework defined by cuDNN. </li>
+  <li>cuDNN is a relatively general library: we may be able to write more optimized code specific to our model. </li>
+</ul>
+
+
+<p><em>Sharan Chetlur, Cliff Woolley, Philippe Vandermersch, Jonathan Cohen, JohnTran, Bryan Catanzaro, and Evan
+    Shelhamer. 2014. cudnn: Efficient primitives fordeep learning.arXiv preprint arXiv:1410.0759(2014)</em></p>

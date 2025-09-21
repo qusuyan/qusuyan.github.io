@@ -1,0 +1,160 @@
+---
+layout: post
+status: publish
+published: true
+title: NFS
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 230
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=230
+date: '2022-02-06 00:15:29 +0000'
+date_gmt: '2022-02-06 00:15:29 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>NFS (Network File System) is a distributed filesystem protocol that allows a user on a client computer to
+  access files over a network much like local storage is accessed. This paper reviews the design and implementation of
+  NFS v2, v3, and v4. </p>
+---
+
+<h2 id="nfs-v2">NFS v2</h2>
+
+
+<p>NFS v2 is the first published version of NFS. Its design goals include: 1. to provide transparent access so that
+  existing programs can access remote files the same way as accessing local files (UNIX-like semantics on client side);
+  2. to be independent of the machines and operating systems on which the server and the clients run on; 3. to provide
+  crash recovery; 4. to provide reasonable performance when compared with accessing local disks. </p>
+
+
+<p>The basic design of NFS consists of 3 major pieces: the protocol, the server side, and the client side. </p>
+
+
+<p>NFS protocol uses RPC: calls from the same client are synchronous. NFS protocol is stateless in that the server does
+  not keep track of any past requests. This makes crash recovery easy since, when a server crashes, the client only
+  needs to retry the same request over and over until the server reboots, and the request would contain all information
+  needed for the server to fulfill the request. The client cannot distinguish a crashed server from a slow server. The
+  basic NFS procedure parameter is a file handle, a data structure provided by the server for clients to reference a
+  file. The client requests a <code>lookup </code>call to a directory (with the file handle of the directory), and the
+  server will return the client the file handle of the desired directory / file (much like path resolution). The first
+  file handle needs to be obtained using a separate RPC protocol called <code>MOUNT</code>. It takes a directory path
+  name and returns the corresponding file handle if the client has access permission to the filesystem in which the
+  directory is. Note that this is the only part that depends on the OS to perform path resolution and permission
+  checking. </p>
+
+
+<p>The NFS server is stateless and mentioned previously. For each request, it has to commit the result to disk before
+  returning to the client. Other than that it performs like a regular filesystem. </p>
+
+
+<p>The client, on the other hand, needs to keep all the states such as the file handle of the current directory.
+  Additionally, to support transparent access to remote and local filesystems, all filesystems running on the client OS
+  needs to support two interfaces, a Virtual Filesystem (VFS) interface that provides a unified interface for all
+  filesystems, and a Virtual Node (vnode) interface that defines the actual procedure specific to each individual
+  filesystems. Then, the client can access both remote and local filesystems using VFS. Most operations in VFS are
+  similar to operations defined by NFS protocol except path name resolution. To compensate this, the kernel will take
+  the path name the perform name resolution through recursive <code>lookup</code> calls to NFS server. </p>
+
+
+<p>This design, however, delivers poor performance. To improve performance, the client needs to cache data. To resolve
+  the consistency issue and invalidate stale cache timely, the client sends <code>getattr</code> to the server
+  periodically to check if the file has been recently modified. However, this creates huge load on the server and limits
+  scalability. </p>
+
+
+<h2 id="nfs-v3">NFS v3</h2>
+
+
+<p>NFS v2 has two important weaknesses: 1. the protocol requires the server to write data and filesystem metadata to
+  storage device synchronously, which limits performance; 2. the protocol lacks consistency guarantees. Additionally,
+  NFS v2 was designed for 32-bit OS, which can only support a maximum of 4GB files. NFS v3 improves on NFS v2 to resolve
+  this issues while keeping the stateless nature of NFS v2. </p>
+
+
+<p>The first improvement is to keep a reply cache on server. In NFS v2, the protocol is stateless but not all operations
+  are idempotent (e.g., create, remove, etc). Since these calls are required, servers in NFS v3 caches recent replies
+  along with the corresponding client and sequence number. If a duplicate request is received, it simply returns the
+  cached reply. Although this violates the stateless design principle somewhat, this table can be discarded at any time
+  and the hence does not need to be recovered during a server crash. </p>
+
+
+<p>To support asynchronous write, NFS v3 provides two new interfaces: asynchronous write and commit. The client can send
+  as many asynchronous writes as it wishes followed by a commit, during which the server will write all cached data back
+  to storage device. Since we do not want to do any crash recovery on server restart, the client needs to keep a copy of
+  all uncommitted writes so that it can replay all writes to support recovery after a server crash. To notify of a
+  server crash to the client, each server keeps a <em>write verifier</em> that changes on every server reboot (e.g,
+  server boot time). The server sends clients the write verifier in their commit responses so that the clients can
+  detect a server crash by comparing to the original write verifier. </p>
+
+
+<p>As for data sharing, NFS v3 preserves close-to-open consistency, meaning that it ensures that all changes are flushed
+  to disk on <code>close()</code> and revalidates cache consistency on <code>open()</code>. </p>
+
+
+<p>NFS v2 uses <code>getattr</code> to check if a file has recently been modified. However, this method fails when the
+  client modifies the local cache, during which the local cache would have a different modification time from the time
+  it fetches the cache. In NFS v3, each request includes a pre-operation attribute and a post-operation attribute. The
+  client needs to check if the cache's attribute matches the pre-operation attribute and updates it to the
+  post-operation attribute. </p>
+
+
+<h2 id="nfs-v4">NFS v4</h2>
+
+
+<p>NFS v4 differs from NFS v2 and v3 in that it is a stateful protocol. It integrates file locking, strong security,
+  operation coalescing, and delegations. It introduces the stateful <code>open</code> and <code>close</code>, and keeps
+  the current directory for each client during which permission checks happen. <code>lookup</code> now moves the current
+  directory up and down the directory hierarchy. </p>
+
+
+<p>The first change introduced is the exported filesystem. To a client with access to some filesystems but not the
+  others, NFS server creates a pseudo filesystem that hides all the mount points and directories that the client does
+  not have access to. </p>
+
+
+<p>NFS v4 introduces a <code>compound</code> procedure, which is essentially a list of operations. When the server
+  receives a <code>compound</code> procedure, it performs the operations in order and adds the corresponding results to
+  a compound response that will be returned to the client. If an operation in the <code>compound</code> procedure fails,
+  it will stop on that operation and return the compound response so the client can know which operation fails. Note
+  that the <code>compound</code> procedure is not atomic: it does not provide any guarantees regarding the operations
+  within the procedure. </p>
+
+
+<p>When a client contacts a server for the first time, it needs to send a unique <em>verifier</em> that changes after
+  client reboot. The server then returns a client id that the client will use to identify itself. This client id is used
+  to by the server to identify the current client. After a client reboot, it will have a different client id so it
+  cannot reclaim a lock it holds before the crash. NFS locking is lease-based. The client is responsible for renewing
+  the lock before the lease period expires. During a server crash, it will wait for a period equal to the lease period
+  during which no client can request any lock. After that, all locks have expired and clients are free to grab the locks
+  again. </p>
+
+
+<p>Another important change of NFS v4 is delegation. NFS v4 allows a server to delegate specific actions on a file to a
+  client to enable more aggressive client caching of data and allow caching of locking state for the first time. When
+  the client holds the lock for a file, it can aggressively perform all reads and writes to its local cache without
+  worrying about consistency. In addition, when a file is only being referenced by a single client, the responsibility
+  of <code>open</code>, <code>close</code>, and <code>lock</code> are delegated to the client. If it can be guaranteed
+  that server has enough space, <code>write</code> can also be applied to the local cache without flushing it to server
+  storage devices. When multiple files are reading, in absence of writers, the server can also delegate
+  <code>open</code> to these readers. However, when another client tries to access the same file, the server needs to
+  reclaim the delegation through a callback.
+</p>
+
+
+<p><em>R. Sandberg, D. Golgberg, S. Kleiman, D. Walsh, and B. Lyon. 1988.Design andImplementation of the Sun Network
+    Filesystem. Artech House, Inc., USA, 379–390.</em></p>
+
+
+<p><em>Brian Pawlowski, Chet Juszczak, Peter Staubach, Carl Smith, Diane Lebel, andDave Hitz. 1994. NFS Version 3:
+    Design and Implementation.. InUSENIX Summer.Boston, MA, 137–152.</em></p>
+
+
+<p><em>Brian Pawlowski, David Noveck, David Robinson, and Robert Thurlow. 2000.The NFS version 4 protocol. InIn
+    Proceedings of the 2nd International SystemAdministration and Networking Conference (SANE 2000</em></p>

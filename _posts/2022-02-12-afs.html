@@ -1,0 +1,96 @@
+---
+layout: post
+status: publish
+published: true
+title: AFS
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 235
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=235
+date: '2022-02-12 00:17:41 +0000'
+date_gmt: '2022-02-12 00:17:41 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>Andrew File System (AFS) is a distributed filesystem designed and implemented in 1980s after NFS v2. </p>
+---
+
+<h2 id="summary">Summary</h2>
+
+
+<p>Andrew File System (AFS) is a distributed filesystem designed and implemented in 1980s after NFS v2. It focuses on
+  improving the scalability by resolving 3 problems: 1. reduce the amount of requests sent to the server; 2. reduce the
+  amount of computation (e.g., pathname resolution, context switch, etc) on the server; 3. load balancing between
+  multiple AFS servers. </p>
+
+
+<p>AFS servers are leader based: each file stored in AFS is replicated over multiple nodes with one dedicated leader.
+  All update requests to the file are directed to the leader node that will propagate the update to all other read-only
+  replicas. When the client accesses a file, it fetches it from the server and keeps a local cache. When it tries to
+  access the same file again, it will check with the server responsible for that file if the file has recently been
+  modified. If not, it will use the local cache instead of fetching the file from the server again. This provides a
+  simple close-to-open consistency guarantee. </p>
+
+
+<p>An important feature of AFS is that for a typical read-modify-write operation on a file, an AFS client simply
+  requests the entire file from the server on opening, apply all updates to its local cache, and commit the changes to
+  the server on closing. This significantly reduces the number of requests sent to the server from a client: regardless
+  of the number of operations between open and close, only two requests are communicated to the server. However, this
+  also means that updates are only visible to other clients on close, so if there are multiple clients concurrently
+  updating the same file, the last one that commits will overwrite all updates from other clients. AFS assumes that
+  concurrent access is rare and requires application level concurrency control for sharing. </p>
+
+
+<p>AFS improves performance through caching: if a file is already present in cache, it does not have to request it again
+  from the server. Yet, instead of periodically checking with the server for validity, AFS uses callbacks: when the
+  client requests a file, the server attaches a callback to that request. When a client commits some updates to a file,
+  the server breaks the callbacks to notify all other clients that their caches are no longer up-to-date. Hence if a
+  cache has a callback, the client can assume that this file has not been modified and use it directly. </p>
+
+
+<p>AFS servers manage files using key-value stores. Each file on AFS is associated with a unique fixed-length <em><span
+      style="text-decoration: underline;">Fid</span></em> and directories map pathnames to the corresponding Fids. The
+  clients will locally resolve for the Fid corresponding to the desired pathname with its local directory cache and
+  present the Fid to the server. The server manages files in volumes: Fid contains information about which volume the
+  file belongs to, its offset within the volume, and a uniquifier that indicates if the file corresponding to that Fid
+  is still the original file, not a different file placed in the same position in the same volume after the original
+  file was removed. AFS achieves load balancing by moving volumes among the servers. A distributed database keeps track
+  of on which server each volume is located. </p>
+
+
+<h2 id="strength">Strength</h2>
+
+
+<ul>
+  <li>The design of AFS delivers high scalability: the client only communicates with the server for open, close, and
+    other operations off the critical path, significantly reducing the server load when compared with NFS. </li>
+  <li>Changes to a file are materialized atomically on close, making it easy for failure handling: only server or client
+    failure during close may lead to crash consistency issues. The server contains a consistent copy at any other time.
+  </li>
+  <li>The abstraction of volume makes data migration (and hence load balancing) simple, and files are still accessible
+    during volume migration. </li>
+</ul>
+
+
+<h2 id="weakness">Weakness</h2>
+
+
+<ul>
+  <li>This design makes sharing complicated. Modifications on one client is not visible on other clients until it closes
+    the file, and AFS relies on application-level concurrency control permit sharing. </li>
+  <li>AFS clients always cache the entire file. If the client only needs to access a small portion of a large file, this
+    can incur huge network traffic and exhaust client storage resources.</li>
+</ul>
+
+
+<p><em>John H Howard, Michael L Kazar, Sherri G Menees, David A Nichols, MahadevSatyanarayanan, Robert N Sidebotham, and
+    Michael J West. 1988. Scale andperformance in a distributed file system.ACM Transactions on Computer Systems(TOCS)6,
+    1 (1988), 51–81.</em></p>

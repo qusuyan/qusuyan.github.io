@@ -1,0 +1,124 @@
+---
+layout: post
+status: publish
+published: true
+title: Redundancy Does Not Imply Fault Tolerance
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 186
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=186
+date: '2022-01-26 23:25:23 +0000'
+date_gmt: '2022-01-26 23:25:23 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>This paper analyzes how modern distributed storage systems behave in presence of filesystem failures such as
+  data corruption and read/write errors. It analyzes a simple fault model where exactly a single fault is injected to a
+  single filesystem block in a single node. Faults are injected to application-level on-disk structures since
+  filesystems can independently guard their own metadata. </p>
+---
+
+<h2 id="overview">Overview</h2>
+{{page.excerpt}}
+<div class="wp-block-image">
+  <figure class="aligncenter size-full"><img src="/assets/img/redundancy-does-not-imply-fault-tolerance/faults.png"
+      alt="" class="wp-image-187" /></figure>
+</div>
+
+
+<p>This paper introduces <em>CORDS</em>, a fault injection framework consisting of two parts: <em>errfs</em>, a FUSE
+  filesystem, and <em>errbench</em>, a set of workloads and behavior inference script. For the purpose of this analysis
+  (distributed storage system), <em>errbench</em> consists of only two workloads: read an existing data item, and insert
+  or update a data item. </p>
+
+
+<p>Fault injection is done by <em>errfs</em>, which the applications will run on. The system will be initialized to a
+  known state by inserting a few data items without any error. Then future workloads may encounter data corruptions or
+  error injected by <em>errfs</em>, which will also update the data blocks accordingly. Notice that the bugs generated
+  by <em>errfs</em> can occur on XFS and all ext filesystems. But filesystems like btrfs and ZFS employ checksums for
+  user data so block corruption will not occur in them. </p>
+
+
+<p>CORDS then observes the system behavior and compares with 4 expected behaviors: 1. committed data should not be lost;
+  2. queries should not silently return corrupted data; 3. cluster should be available for reads and writes; 4. queries
+  should not fail after retries. It also analyzes the local behavior of the faulty node and its global effect. </p>
+
+
+<h2 id="results">Results</h2>
+
+
+<p>This paper studies 8 widely-used distributed storage systems: Redis, ZooKeeper, Cassandra, Kafka, RethinkDB, MangoDB,
+  LogCabin, and CockroachDB. It runs each system on a cluster of 3 nodes. Figures below show the results. </p>
+
+
+<figure class="wp-block-image size-large"><img src="/assets/img/redundancy-does-not-imply-fault-tolerance/results-1.png"
+    alt="" class="wp-image-191" /></figure>
+
+
+<figure class="wp-block-image size-full"><img src="/assets/img/redundancy-does-not-imply-fault-tolerance/results-2.png"
+    alt="" class="wp-image-193" /></figure>
+
+
+<figure class="wp-block-image size-large"><img src="/assets/img/redundancy-does-not-imply-fault-tolerance/results-3.png"
+    alt="" class="wp-image-192" /></figure>
+
+
+<p>All distributed storage systems studied shows different levels of vulnerabilities to filesystem failures. From this
+  study, this paper draws 5 main observations:</p>
+
+
+<p><strong>Systems employ diverse data integrity strategies.</strong> Figure below shows different strategies employed
+  by these distributed systems to ensure data integrity. Some systems like ZooKeeper protect their data against
+  corruptions in the storage stack through checksums, while systems like RethinkDB completely trust the storage stack.
+  Yet despite the use of different strategies to protect data integrity, all systems exhibit undesired behaviors in
+  presence of data corruption due to their designs (e.g. ZooKeeper uses checksum algorithms that are not collision
+  resistant for short strings). </p>
+
+
+<div class="wp-block-image">
+  <figure class="aligncenter size-full"><img src="/assets/img/redundancy-does-not-imply-fault-tolerance/results-4.png"
+      alt="" class="wp-image-194" /></figure>
+</div>
+
+
+<p><strong>Local Behavior: Faults are often undetected; even detected, crashing is the most common local
+    reaction.</strong> Upon detecting faults, the system simply crashes in most cases. By design, such single point
+  failures does not immediately affect availability in distributed storage systems and only leads to reduced redundancy.
+  The study also observes that nodes are more prone to crashes on error than corruptions. Another observation is that
+  failed operations are rarely retried. This is controversial as on the one hand, retry can help in several cases. But
+  on the other hand, indefinitely retrying can cause other problems. </p>
+
+
+<p><strong>Redundancy is underutilized: a single fault can have disastrous cluster-wide effects.</strong> All the
+  distributed systems studied achieves good availability through redundancy, but only few of them use the intact
+  replicas to recover the corrupted / lost data. Two exceptions are MangoDB and LogCabin, where a node with data
+  corruption will become a follower that can recover its data from the leader. Another observation is that an inordinate
+  amount of data can be affected when only a small portion of data is faulty, e.g. in Kafka, if some data block in the
+  log is corrupted, all subsequent log entries are discarded. </p>
+
+
+<p><strong>Crash and corruption handling are entangled.</strong> All the distributed storage systems studied runs the
+  crash recovery code upon detecting a checksum mismatch due to corruption, which can lead to undesired effects such as
+  data loss. One example is in Kafka, where all entries after a corrupted entry in a log are discarded. LogCabin and
+  MangoDB tries to differentiate data corruption from crashes, but their attempts do not always yield the correct
+  result. </p>
+
+
+<p><strong>Nuances in commonly used distributed protocols can spread corruption or data loss.</strong> One outstanding
+  example is in Cassandra. When the leader sees that the followers have a different copy from its local copy, it chooses
+  the copy with latest timestamp. But in presence of data corruption, both copies will have the same timestamp, in which
+  the tie will be broken lexically. Hence if the corrupted data is lexically greater, it will be spread to other
+  replicas and corrupt their copies. </p>
+
+
+<p>Ganesan, Aishwarya, et al. "Redundancy does not imply fault tolerance: Analysis of distributed storage reactions to
+  single errors and corruptions." <em>15th {USENIX} Conference on File and Storage Technologies ({FAST} 17)</em>. 2017.
+</p>

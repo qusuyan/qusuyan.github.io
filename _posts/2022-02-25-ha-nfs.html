@@ -1,0 +1,95 @@
+---
+layout: post
+status: publish
+published: true
+title: HA-NFS
+author:
+display_name: qusuyan
+login: qusuyan
+email: qusuyan@gmail.com
+url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+author_login: qusuyan
+author_email: qusuyan@gmail.com
+author_url: http://ec2-3-134-99-67.us-east-2.compute.amazonaws.com
+wordpress_id: 269
+wordpress_url: http://ec2-3-139-82-188.us-east-2.compute.amazonaws.com/?p=269
+date: '2022-02-25 01:05:37 +0000'
+date_gmt: '2022-02-25 01:05:37 +0000'
+categories:
+- Paper Review
+- Distributed System
+tags: []
+comments: []
+excerpt: <p>This paper presents Highly Available Network File System (HA-NFS). It splits the availability problem in to
+  3 kinds
+  of availability problems and uses different strategies to improve each kind. </p>
+---
+
+<h2>Summary</h2>
+
+
+<p>This paper presents Highly Available Network File System (HA-NFS). It splits the availability problem in to 3 kinds
+  of availability problems and uses different strategies to improve each kind: server availability, disk availability,
+  and network availability. This paper has three main goals: 1. failure and recovery should be transparent to the
+  clients; 2. failure-free performance is unaffected (small overhead); 3. backward compatible with NFS clients. </p>
+
+
+<p>Server availability is enhanced through primary-backup pairs. In HA-NFS, NFS servers are arranged in pairs connected
+  to the same set of dual-port disks. They each serve as independent NFS servers during normal execution and both act as
+  the backup for the other. Each server has two network interfaces: a primary and a secondary interface. Client requests
+  are sent to the primary interface. On normal operation, an NFS server persists the requests it receives to a
+  designated log disk. It also exchanges heartbeat with its partner server to monitor its liveness. If the partner
+  server has not sent any heartbeat for a timeout period, the server sends an ICMP echo packet to the partner server,
+  and then send a request through the dual-port disk if it still does not respond to the ICMP echo packet. Notice that
+  both ICMP packet and the dual-port message passing trigger a high-priority interrupt on the partner server. This
+  checks if the partner server is actually dead or is just busy processing other requests. </p>
+
+
+<p>If the server determines that its partner server has failed, it starts a take-over process. It runs the logs and
+  restore the filesystem to a consistent state. Then it changes the IP address of its secondary interface to that of the
+  primary interface on the failed server. This reroutes the requests to the failed server to the live server. When the
+  failed server comes back up, it uses its secondary interface to send reintegration requests to the live server. The
+  live server will first unmount the corresponding filesystem, switch its secondary interface back, and ack back to the
+  reintegrating server. The reintegrating server will then reclaim the disk, run logs to reconstruct the state, and
+  switch its primary interface on. This protocol ensures an important safety invariant: at any point there is only one
+  server working with one disk, so that there is no race condition. </p>
+
+
+<p>Fast recovery from disk failures are achieved by mirroring files on different disks (RAID 1). Notice that the
+  duplicated disks are managed by the same server, so there is no need for network round trips to ensure consistency.
+</p>
+
+
+<p>HA-NFS relies on replicating network components to tolerate network failures. Each server has its primary and
+  secondary network interfaces attached to different networks, and the two servers in the same primary-backup pair have
+  their primary interface attached to different networks for load balancing. However, to recover from network failures,
+  the client needs to detect the network failures to reroute the requests. In this design, the servers will broadcast
+  heartbeat messages through its primary interface and a daemon on every client will detect the heartbeats. Notice that
+  this configuration can tolerate the combination of server and network failures: in that case the live server's network
+  interface attached to the working network will take all the requests for the live and failed server. </p>
+
+
+<h2>Strength</h2>
+
+
+<ul>
+  <li>This design is able to provide high availability with minimal cost. Each server is only doing more work in sending
+    heartbeats and replicating the files to the backup disk. </li>
+  <li>In this design, all nodes are fully utilized, unlike primary-backup where the backup nodes never handle any
+    requests when the primary is live. </li>
+</ul>
+
+
+<h2>Weakness</h2>
+
+
+<ul>
+  <li>This design only permits one failure for each pair of servers. This availability guarantee is rather weak compared
+    with primary-backup. </li>
+  <li>Backup takeover takes about 30 seconds and reintegration takes 60 seconds, which is extremely slow considering
+    that no client requests can be processed during takeover and reintegration. </li>
+</ul>
+
+
+<p><em>Bhide, Anupam, Elmootazbellah N. Elnozahy, and Stephen P. Morgan. "A highly available network file server."
+    USENIX Winter. Vol. 91. 1991.</em></p>
