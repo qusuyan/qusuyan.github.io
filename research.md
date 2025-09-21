@@ -20,3 +20,4 @@ Before blockchains, my colleagues and I worked on building filesystems tailored 
 
 ## Talks
 * <b>CBox: Towards a Unified Blockchain System Evaluation Framework.</b> <u>Suyan Qu</u>, Andrea C. Arpaci-Dusseau, Remzi H. Arpaci-Dusseau. 2024. The Science of Blockchain Conference (SBC) Lightning Talks. [<i class="fa-brands fa-youtube"></i>](https://www.youtube.com/watch?v=GoAO2MNU0Oo&t=3310s)
+* <b>Blockchain Technologies: An Overview. </b> <u>Suyan Qu</u>. MadSystems Seminar, 20 Feb 2025. 
