@@ -19,7 +19,7 @@ I am currently interning at <a href="https://www.avalabs.org/">Ava Labs</a>, wor
 
 <table>
 <tr><td>Jun 2025 - Aug 2025</td><td>Software Engineering Intern at <a href="https://www.avalabs.org/">Ava Labs</a></td><td>New York, NY</td></tr>
-<tr><td>Jun 2022 - Aug 2022</td><td>Software Engineering Intern at Facebook</td><td>Menlo Park, CA</td></tr>
+<tr><td>Jun 2022 - Aug 2022</td><td>Software Engineering Intern at Meta</td><td>Menlo Park, CA</td></tr>
 <tr><td>Jun 2021 - Aug 2021</td><td>Software Engineering Intern at Facebook</td><td>Remote</td></tr>
 <tr><td>Jun 2020 - Aug 2020</td><td>Software Engineering Intern at Facebook</td><td>Remote</td></tr>
 <tr><td>Jun 2019 - Aug 2019</td><td>Software Development Engineer Intern at Amazon</td><td>Seattle, WA</td></tr>
@@ -37,6 +37,6 @@ I am currently interning at <a href="https://www.avalabs.org/">Ava Labs</a>, wor
 <tr><td>SP 2022</td><td>TA for CS537: Introduction to Operating Systems</td><td>UW-Madison</td></tr>
 <tr><td>FA 2021</td><td>TA for <a href="https://pages.cs.wisc.edu/~remzi/Classes/537/Fall2021/">CS537: Introduction to Operating Systems</a></td><td>UW-Madison</td></tr>
 <tr><td>SP 2021</td><td>Peer Mentor for CS537: Introduction to Operating Systems</td><td>UW-Madison</td></tr>
-<tr><td>FA 2021</td><td>TA for <a href="http://pages.cs.wisc.edu/~jerryzhu/cs540.html">CS540: Introduction to Artificial Intelligence</a></td><td>UW-Madison</td></tr>
-<tr><td>FA 2021</td><td>TA for CS540: Introduction to Artificial Intelligence</td><td>UW-Madison</td></tr>
+<tr><td>FA 2021</td><td>Peer Mentor for <a href="http://pages.cs.wisc.edu/~jerryzhu/cs540.html">CS540: Introduction to Artificial Intelligence</a></td><td>UW-Madison</td></tr>
+<tr><td>FA 2021</td><td>Peer Mentor for CS540: Introduction to Artificial Intelligence</td><td>UW-Madison</td></tr>
 </table>
