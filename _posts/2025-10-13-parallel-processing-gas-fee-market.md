@@ -1,0 +1,26 @@
+---
+layout: post
+title: How Much Should It Actually Cost? Gas Fee Market Design with Parallel Execution
+author: Suyan Qu
+categories:
+- Paper Review
+- Byzantine Fault Tolerance
+excerpt_separator: <!--more-->
+---
+
+Last week at AFT'25, I came across Dr. Lioba Heimbach's presentation on her recent work, [*Transaction Fee Market Design for Parallel Execution*](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.AFT.2025.23). The paper provides an abstraction for transactions and formally defines 9 properties preferrable to the transaction fee market designs. 
+<!--more-->
+The work is truly inspiring. It encourages blockchains to embrace parallel execution to reduce transaction fees for their users. In many ways this line of research closely ressembles the billing problem in the serverless context. A friend of mine has published her work on the billing problem earlier this year, [*Making Serverless Pay-For-Use a Reality with Leopard*](https://www.usenix.org/conference/nsdi25/presentation/cao), which shows that charging users for only the amount of resources they use (pay-for-use) incentivizes service providers to process transactions as efficiently as possible, improving overall performance of the system. Translating to the blockchain context, with fee market designed with parallel execution in mind, block proposers will preferrably batch as much independent transactions as possible to maximize transaction fee. In my honest opinion, designing gas fee market around parallel execution will have a lot of real-world impacts.
+
+## Charge for Execution Time? Or Resource Usage?
+Nonetheless, what is optimal in the traditional serverless world raises a few concerns in the blockchain world. From a high level, with parallel execution, we expect the same block with same set of transactions to run faster than with sequential execution. Therefore, the gas fee of the entire block should be lower. However, a lot of existing blockchain systems perform parallel execution by optimistically assume that the current transaction does not conflict with any previous transactions that run in parallel and, if conflicts are detected, abort the current transaction and rerun it from beginning. This abort-and-retry mechanism inevitably consumes more compute cycles. Even in the best case, running transactions in parallel will not reduce the instructions required to execute these transactions. So, paradoxically, validators are paying a higher compute cost (more expensive electric bill!) but receiving fewer rewards compared with sequential execution. 
+
+The problem arises from that, with sequential execution, resource utilization is strongly correlated with the time to execute transactions, as running multiple transactions will take proportionally longer time. With parallel execution, however, such correlation no longer hold, and running a batch of transactions may take roughly the same amount of time as running only the longest-running transaction if all of them are independent. One way to reconcile this paradox is to charge transactions for the amount of resources that cannot be utilized because of it. In sequential execution, transactions are charged for all cores available on the host machine, even though it only requires one. However, such a model is even more complicated and may unfairly charge later transactions in the block unproportionally more because there are no more transactions left to run in the same block. 
+
+## Ordering Shouldn't Matter
+This leads to a second concern with the pay-for-use model in blockchain context. Order of transactions in the same block can lead to different transactions being charged differently. Consider storage access for example. If two transactions access the same state in the storage, the first transaction may need to read the state from the disk, consuming disk bandwidth and throusands of instruction cycles. Yet the second transaction will most likely be able to read the same state from an in-memory cache and consume orders of magnitude less cycles. This gives transactions later in the block an unreasonable advantage over transactions earlier in the block, leading to fairness issues and even MEV concerns. Furthermore, such a gas model needs to take cache size and replacement policy into account, further complicating gas computation. 
+
+## So, What Now?
+Honestly, I do not have any idea on how to resolve these problems. Maybe multi-dimentional gas fee is our only hope to reconcile all the paradox and make pay-for-use a reality in the blockchain world. Or, maybe we can stick to the gas fee market we currently have and provide other incentives for validators to run transactions in parallel so that, with sufficiently many validators doing so, the overall network will proceed faster. 
+
+Anyhow, as a system researcher, my analysis on the gas fee market design stops here. Hopefully researchers with higher expertise in this topic will see this post and resolve my questions :\)
