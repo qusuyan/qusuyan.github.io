@@ -14,6 +14,8 @@ Before blockchains, my colleagues and I worked on building filesystems tailored 
 &nbsp;
 
 ## Publications
+* <b>Chain-in-the-Box: Large-scale Blockchain Prototyping on a Single Machine</b><u>Suyan Qu</u>, Andrea Arpaci-Dusseau, Remzi Arpaci-Dusseau. To appear in Financial Cryptography and Data Security 2026. [<i class="fa-brands fa-github"></i>](https://github.com/qusuyan/CBox)
+* <b>Data-Centric Serverless Computing with LAMBDASTORE</b>. Kai Mast, <u>Suyan Qu</u>, Aditya Jain, Andrea Arpaci-Dusseau, and Remzi Arpaci-Dusseau. To appear in Software. [<i class="fa-solid fa-file"></i>](https://www.preprints.org/manuscript/202512.0965) [<i class="fa-brands fa-github"></i>](https://github.com/kaimast/lambda-store)
 * <b>MadFS: Per-File Virtualization for Userspace Persistent Memory Filesystems</b>. Shawn Zhong, Chenhao Ye, Guanzhou Hu, <u>Suyan Qu</u>, Andrea Arpaci-Dusseau, Remzi Arpaci-Dusseau, and Michael Swift. 2023. In Proceedings of the 21th USENIX Conference on File and Storage Technologies (FAST ‘23). USENIX Association. [<i class="fa-solid fa-file"></i>](https://www.usenix.org/conference/fast23/presentation/zhong) [<i class="fa-brands fa-github"></i>](https://github.com/WiscADSL/MadFS)
 
 &nbsp;
