@@ -11,7 +11,7 @@ I am a Computer Sciences PhD student in the [ADSL Lab](https://research.cs.wisc.
 
 My current research focuses on improving transaction parallel execution efficiency for EVM. My previous researches were on analyzing and improving the performance of blockchain systems, designing filesystems that suit better with persistent memories and boosting the performance of stateful serverless functions through a compute-storage co-design architecture. 
 
-Outside my research, I worked on [Firewood](https://github.com/ava-labs/firewood) during my internship at [Ava Labs](https://www.avalabs.org/). I am also trying to rewrite my friend Yunhao's [EGOS-2000](https://github.com/yhzhang0128/egos-2000) in rust. 
+Outside my research, I worked on [Firewood](https://github.com/ava-labs/firewood) during my internship at [Ava Labs](https://www.avalabs.org/). I am also trying to rewrite my friend Yunhao's [EGOS-2000](https://github.com/yhzhang0128/egos-2000) in Rust. 
 
 &nbsp;
 
