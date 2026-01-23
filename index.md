@@ -7,11 +7,11 @@ title: "About Me"
 
 # About Me
 
-I am a Computer Sciences PhD student in the <a href="https://research.cs.wisc.edu/adsl/">ADSL Lab</a> at University of Wisconsin-Madison, where I was fortunate enough to be advised by <a href="https://pages.cs.wisc.edu/~remzi/">Prof. Remzi Arpaci-Dusseau</a> and <a href="https://pages.cs.wisc.edu/~dusseau/">Prof. Andrea Arpaci-Dusseau</a>. My research interest lies in computer systems, with an emphasis on storage systems and distributed systems. 
+I am a Computer Sciences PhD student in the [ADSL Lab](https://research.cs.wisc.edu/adsl/) at University of Wisconsin-Madison, where I was fortunate enough to be advised by [Prof. Remzi Arpaci-Dusseau](https://pages.cs.wisc.edu/~remzi/) and [Prof. Andrea Arpaci-Dusseau](https://pages.cs.wisc.edu/~dusseau/). My research interest lies in computer systems, with an emphasis on storage systems and distributed systems. My current research focuses on blockchain systems. 
 
-My current research focuses on analyzing and improving the performance of blockchain systems. My previous researches were on designing filesystems that suit better with persistent memories and boosting the performance of stateful serverless functions through a compute-storage co-design architecture. 
+My current research focuses on improving transaction parallel execution efficiency for EVM. My previous researches were on analyzing and improving the performance of blockchain systems, designing filesystems that suit better with persistent memories and boosting the performance of stateful serverless functions through a compute-storage co-design architecture. 
 
-I am currently interning at <a href="https://www.avalabs.org/">Ava Labs</a>, working on the <a href="https://github.com/ava-labs/firewood">Firewood</a>!
+Outside my research, I worked on [Firewood](https://github.com/ava-labs/firewood) during my internship at [Ava Labs](https://www.avalabs.org/). I am also trying to rewrite my friend Yunhao's [EGOS-2000](https://github.com/yhzhang0128/egos-2000) in rust. 
 
 &nbsp;
 
