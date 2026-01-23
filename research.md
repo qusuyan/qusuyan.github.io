@@ -7,7 +7,7 @@ permalink: /research
 
 My research interest lies in computer systems, especially storage systems and distributed systems. This includes consensus problems, serverless systems, blockchain technology, cloud storage infrastructures, database systems, machine learning systems, storage data structures, filesystems, etc. This field is too fantastic to miss out anything ¯\\\_(ツ)\_/¯.
 
-My current research focuses on analyzing and improving the performance of blockchain systems, specifically on the core consensus algorithm, the data model, and the storage engine. I built [CBox](https://github.com/qusuyan/CBox), an emulation tool to study blockchain performance at scale. I worked on [Firewood](https://github.com/ava-labs/firewood) to build a faster authenticated storage system during my internship at Ava Labs. My current research focus on intra-block parallel execution. 
+My current research focuses on analyzing and improving the performance of blockchain systems, specifically on the core consensus algorithm, the data model, and the storage engine. I built [CBox](https://github.com/qusuyan/CBox), an emulation tool to study blockchain performance at scale. I worked on [Firewood](https://github.com/ava-labs/firewood) to build a faster authenticated storage system during my internship at Ava Labs. Currently, I am looking at improving intra-block parallel execution efficiency. 
 
 Before blockchains, my colleagues and I worked on building filesystems tailored towards persistent memories and improving stateful serverless functions through co-designing the compute and storage infrastructures. 
 
