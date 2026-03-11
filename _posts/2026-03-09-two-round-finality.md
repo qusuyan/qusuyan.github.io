@@ -4,9 +4,10 @@ title: BFT with 2-Rround Finality
 author: Suyan Qu
 categories:
 - Byzantine Fault Tolerance
+excerpt_separator: <!--more-->
 ---
 
-This post gives a general overview of BFT protocols with 2-round finality. I was digging into this topic last weekend since there is not a good post explaining why they need $n\ge5f+1$ and ChatGPT cannot explain it to me (so AI cannot replace us...yet). I hope this post can clear out some common questions on this topic so that people don't need to go through all the thinkings I did :). This post is not perfect (since I just learned about the topic as well), so if you have any question or suggestions, feel free to submit PRs or issues. In this blog, we focus on protocols with all-to-all communication, but the same argument should apply to protocols with one-to-all communication. 
+This post gives a general overview of BFT protocols with 2-round finality. I was digging into this topic last weekend since there is not a good post explaining why they need $n\ge5f+1$ and ChatGPT cannot explain it to me (so AI cannot replace us...yet). I hope this post can clear out some common questions on this topic so that people don't need to go through all the thinkings I did :). <!--more-->This post is not perfect (since I just learned about the topic as well), so if you have any question or suggestions, feel free to submit PRs or issues. In this blog, we focus on protocols with all-to-all communication, but the same argument should apply to protocols with one-to-all communication. 
 
 ## What is 2-Round Finality
 Traditional BFT consensus protocols (e.g., PBFT, Tendermint, ...) require at least 3 rounds of communication to commit a block: 
