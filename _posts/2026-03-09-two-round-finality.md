@@ -15,7 +15,7 @@ Traditional BFT consensus protocols (e.g., PBFT, Tendermint, ...) require at lea
 2. The followers cast votes. 
 3. The followers inform each other that a particular proposal received enough votes to be safely committed. 
 
-This contradicts with CFT consensus protocols (e.g., Raft), where proposals can be committed in 2 rounds of communication. The extra round exists mainly because, unlike in CFT, a Byzantine leader can send different proposals to different followers. This means a follower cannot blindly commit what the leader proposes: they need to validate with each other to ensure that they all commit the same block. 
+This contrasts with CFT consensus protocols (e.g., Raft), where proposals can be committed in 2 rounds of communication. The extra round exists mainly because, unlike in CFT, a Byzantine leader can send different proposals to different followers. This means a follower cannot blindly commit what the leader proposes: they need to validate with each other to ensure that they all commit the same block. 
 
 Because 3-round finality incurs an extra message delay to commit a block, an immediate question is if 2-round finality is possible in BFT so that we experience the same latency as in CFT. The answer is yes, but at a stronger assumption of $n\ge5f+1$.
 
@@ -33,20 +33,40 @@ One special case is that, in a single view, two correct validators may observe d
 Unlike traditional BFT consensus that requires $n\ge3f+1$, consensus with 2-round finality has a stronger assumption of $n\ge5f+1$. To arrive at this bound, we first derive some requirements that $Q_c$, $Q_t$, and $I$ should satisfy. 
 
 First of all, for basic liveness, we should have
+
+<div align="center">
 $$n-f\ge Q_c$$
 $$n-f\ge Q_t$$
+</div>
+
 Second, if at least $I$ votes for the same block $A$ exists in a timeout quorum, it is possible that a correct validator commits on $A$. To get the threshold value $I$, we consider the extreme case: all nodes not in the timeout quorum are correct and voted for $A$, all $I$ nodes in the timeout quorum voted for node $A$ are correct, and $f$ Byzantine nodes voted for $A$, and they together forms a commit quorum:
+
+<div align="center">
 $$(n-Q_t)+I+f=Q_c$$
 $$I=Q_c+Q_t-n-f$$
+</div>
+
 Lastly, if a validator observes $I$ votes for block $A$ and $I$ votes for block $B$, it will know that no commit quorum can be formed in the view. Note that this is equivalent to saying that $I$ votes for block $A$ guarantees that no quorum can be formed for blocks other than $A$. Therefore,
+
+<div align="center">
 $$Q_c+I> n+f$$
+</div>
+
 Plug in $I$
+
+<div align="center">
 $$2Q_c+Q_t-n-f> n+f$$
 $$2Q_c+Q_t>2n+2f$$
+</div>
+
 Applying the bounds on $Q_c$ and $Q_t$
+
+<div align="center">
 $$3(n-f)\ge 2Q_c+Q_t>2n+2f$$
 $$3n-3f>2n+2f$$
 $$n>5f$$
+</div>
+
 Note that this bound is achieved when $Q_c=Q_t=n-f$. In this case, $I=n-3f$. 
 
 ## Protocols with 2-Round Finality
