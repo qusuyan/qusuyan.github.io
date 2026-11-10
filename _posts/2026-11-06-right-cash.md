@@ -16,12 +16,12 @@ In many blockchain systems, validators store state in a Merkle Patricia Trie (MP
 We start by looking at the MPT, the most widely adopted authenticated data structure in blockchains. An MPT stores key-value pairs in a trie (or radix tree). For authentication, every internal node of the trie stores the hashes of its children, and validators verify the hash of the trie root during consensus. Below is a very simplified example. Suppose a write changes the value at key `0x1a8` from `v2` to `v2*`. Then we also need to update `C` so that it stores `8: H(v2*)` instead. Because `C` is updated, `A` needs to change as well, and this effect eventually cascades to the `root`.
 ```
  root* [ 1: H(A*), 7: H(B) ]
-         │         └───────────────┐
+           │         └───────────────┐
       A* [ a: H(C*), c: H(D) ]   B [ ... ]
-           │         └─────────────────┐
+             │         └─────────────────┐
         C* [ 3: H(v1), 8: H(v2*) ]   D [ ... ]
-             │         │
-             v1        v2*
+               │         │
+               v1        v2*
 
  * rehashed when the value at key 0x1a8 changes
 ```
@@ -133,7 +133,7 @@ One consequence of this design is that if the current block triggers precomputat
 
 ## Evaluation
 
-We evaluate the effectiveness of RightCash by comparing RightCash on top of Firewood v0.9.0 with bare Firewood. We use two workloads that already exist in the Firewood repository: a Zipfian workload consisting only of updates, each to a key sampled from a Zipfian distribution (with exponent 1.2 by default), and a mixed workload of 25% inserts, 50% updates, and 25% deletes, with keys scattered across the key space. We prefill the storage engine with 1,000,000 records. Then, for each block, we sample 30 groups of 80 writes from the distributions above and send one `Prefetch` signal per group. This imitates a block with 30 transactions, each writing 80 keys. On the mixed workload, about 300 of these 2400 writes hit keys already in the write cache, so only about 2100 new keys enter the cache per block, matching the 2100 writes per block we assumed when choosing the knobs above. We run the experiments in WSL on my personal workstation, with a 20-core Intel i7-12700KF and a Samsung SSD 980 PRO. By default, RightCash uses the LRU eviction policy and the flat hash for its vector commitment, but as we will see soon, RightCash delivers similar performance with FIFO and with the Merkle tree. Here are the results:
+We evaluate the effectiveness of RightCash by comparing RightCash on top of [Firewood v0.9.0](https://github.com/ava-labs/firewood/tree/v0.9.0) with bare Firewood. We use two workloads that already exist in the Firewood repository: a Zipfian workload consisting only of updates, each to a key sampled from a Zipfian distribution (with exponent 1.2 by default), and a mixed workload of 25% inserts, 50% updates, and 25% deletes, with keys scattered across the key space. We prefill the storage engine with 1,000,000 records. Then, for each block, we sample 30 groups of 80 writes from the distributions above and send one `Prefetch` signal per group. This imitates a block with 30 transactions, each writing 80 keys. On the mixed workload, about 300 of these 2400 writes hit keys already in the write cache, so only about 2100 new keys enter the cache per block, matching the 2100 writes per block we assumed when choosing the knobs above. We run the experiments in WSL on my personal workstation, with a 20-core Intel i7-12700KF and a Samsung SSD 980 PRO. By default, RightCash uses the LRU eviction policy and the flat hash for its vector commitment, but as we will see soon, RightCash delivers similar performance with FIFO and with the Merkle tree. Here are the results:
 
 <figure class="wp-block-image aligncenter size-full is-resized"><img src="/assets/img/right-cash/baseline.png" alt=""
     class="wp-image-350" style="width:100%;height:auto" /><br />
