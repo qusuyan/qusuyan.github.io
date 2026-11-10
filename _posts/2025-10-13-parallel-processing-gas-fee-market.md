@@ -3,7 +3,6 @@ layout: post
 title: How Much Should It Actually Cost? Gas Fee Market Design with Parallel Execution
 author: Suyan Qu
 categories:
-- Paper Review
 - Byzantine Fault Tolerance
 excerpt_separator: <!--more-->
 ---
